@@ -17,8 +17,8 @@
         button:hover { background: #b71c1c; }
         .pdf-btn { display: inline-block; background: #0288d1; color: #fff; padding: 10px 15px; border-radius: 6px; text-decoration: none; font-weight: bold; margin-bottom: 15px; }
         .pdf-btn:hover { background: #0277bd; }
-        .result-box { background: #282828; padding: 20px; border-radius: 8px; margin-top: 15px; display: none; }
-        .text-container { max-height: 400px; overflow-y: auto; background: #1e1e1e; padding: 15px; border-radius: 6px; line-height: 1.6; white-space: pre-wrap; margin-bottom: 15px; }
+        .result-box { background: #282828; padding: 20px; border-radius: 8px; margin-top: 15px; display: none; text-align: left; }
+        .text-container { max-height: 400px; overflow-y: auto; background: #1e1e1e; padding: 15px; border-radius: 6px; line-height: 1.6; white-space: pre-wrap; margin-bottom: 15px; text-align: left; }
         audio { width: 100%; margin-top: 10px; border-radius: 6px; }
         .loading { display: none; color: #ffca28; text-align: center; margin: 10px 0; }
     </style>
@@ -52,7 +52,7 @@
     
     <button onclick="processRequest('genre')" style="width: 100%;">Сгенерировать по жанру</button>
 
-    <div id="loading" class="loading">⏳ Загрузка текста, формирование PDF и генерация озвучки...</div>
+    <div id="loading" class="loading">⏳ Загрузка текста, формирование PDF и генерация озвучки (первый запуск может занять до 30-40 сек)...</div>
 
     <div id="result" class="result-box">
         <h2 id="bookTitle"></h2>
@@ -92,9 +92,16 @@
         try {
             const response = await fetch(`${BACKEND_URL}/generate`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
+                },
                 body: JSON.stringify({ user_id: "user1", genre: query })
             });
+
+            if (!response.ok) {
+                throw new Error(`Ошибка сервера: ${response.status}`);
+            }
 
             const data = await response.json();
 
@@ -111,7 +118,7 @@
             loading.style.display = "none";
             result.style.display = "block";
         } catch (e) {
-            alert("Ошибка выполнения: " + e.message);
+            alert("Сервер поднимается из спящего режима или произошла ошибка: " + e.message + "\nПопробуйте повторить клик через 15-20 секунд.");
             loading.style.display = "none";
         }
     }

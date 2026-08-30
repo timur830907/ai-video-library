@@ -5,36 +5,57 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ИИ Библиотека & Генератор Книг</title>
     <style>
-        body { font-family: Arial, sans-serif; background: #121212; color: #fff; margin: 0; padding: 20px; display: flex; justify-content: center; }
-        .card { background: #1e1e1e; padding: 25px; border-radius: 12px; max-width: 700px; width: 100%; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        h1 { font-size: 24px; margin-bottom: 10px; }
-        p.subtitle { color: #aaa; font-size: 14px; margin-bottom: 20px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f0f12; color: #f1f1f1; margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .card { background: #18181c; padding: 30px; border-radius: 16px; max-width: 800px; width: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #2a2a30; }
+        h1 { font-size: 26px; margin-bottom: 8px; text-align: center; }
+        p.subtitle { color: #8e8e93; font-size: 14px; margin-bottom: 25px; text-align: center; }
+        
         .search-box { display: flex; gap: 10px; margin-bottom: 15px; }
-        input[type="text"], select, button { padding: 12px; border-radius: 6px; border: none; font-size: 16px; }
-        input[type="text"] { flex: 1; background: #2a2a2a; color: #fff; }
-        select { background: #2a2a2a; color: #fff; width: 100%; margin-bottom: 15px; }
-        button { background: #d32f2f; color: #fff; font-weight: bold; cursor: pointer; }
-        button:hover { background: #b71c1c; }
-        .pdf-btn { display: inline-block; background: #0288d1; color: #fff; padding: 10px 15px; border-radius: 6px; text-decoration: none; font-weight: bold; margin-bottom: 15px; }
+        input[type="text"], select { padding: 14px; border-radius: 8px; border: 1px solid #333; font-size: 15px; background: #222226; color: #fff; outline: none; }
+        input[type="text"] { flex: 1; }
+        select { width: 100%; margin-bottom: 15px; }
+        
+        button { padding: 14px 20px; border-radius: 8px; border: none; font-size: 15px; background: #e50914; color: #fff; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        button:hover { background: #b80710; transform: translateY(-1px); }
+        
+        /* Быстрый выбор / Тренд дня */
+        .featured-title { font-size: 14px; color: #aaa; margin: 20px 0 10px; text-transform: uppercase; letter-spacing: 1px; }
+        .quick-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 20px; }
+        .chip { background: #25252b; padding: 12px; border-radius: 8px; text-align: center; cursor: pointer; border: 1px solid #333; font-size: 13px; font-weight: 500; transition: 0.2s; }
+        .chip:hover { background: #e50914; border-color: #e50914; }
+
+        .result-box { background: #222226; padding: 25px; border-radius: 12px; margin-top: 25px; display: none; text-align: left; border: 1px solid #333; }
+        .pdf-btn { display: inline-block; background: #0288d1; color: #fff; padding: 12px 18px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 15px 0; transition: 0.2s; }
         .pdf-btn:hover { background: #0277bd; }
-        .result-box { background: #282828; padding: 20px; border-radius: 8px; margin-top: 15px; display: none; text-align: left; }
-        .text-container { max-height: 400px; overflow-y: auto; background: #1e1e1e; padding: 15px; border-radius: 6px; line-height: 1.6; white-space: pre-wrap; margin-bottom: 15px; text-align: left; }
-        audio { width: 100%; margin-top: 10px; border-radius: 6px; }
-        .loading { display: none; color: #ffca28; text-align: center; margin: 10px 0; }
+        
+        .text-container { max-height: 400px; overflow-y: auto; background: #161618; padding: 20px; border-radius: 8px; line-height: 1.7; white-space: pre-wrap; font-size: 15px; color: #ddd; border: 1px solid #2a2a30; margin-bottom: 20px; }
+        
+        /* Аудио контроллер */
+        .audio-section { background: #1a1a1e; padding: 15px; border-radius: 8px; border: 1px solid #2a2a30; }
+        .speed-controls { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
+        .speed-btn { background: #333; padding: 6px 12px; border-radius: 6px; font-size: 12px; }
+        
+        .loading { display: none; color: #ffca28; text-align: center; margin: 15px 0; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h1>📖 ИИ Библиотека & Генератор Книг</h1>
-    <p class="subtitle">Ищите книги по названию/автору или генерируйте по жанру:</p>
+    <h1>📖 ИИ Библиотека & Аудиокниги</h1>
+    <p class="subtitle">Ищите мгновенно по библиотеке или генерируйте ункальный сюжет с ИИ-озвучкой</p>
 
     <div class="search-box">
-        <input type="text" id="searchInput" placeholder="Введите название книги или автора...">
-        <button onclick="processRequest('search')">Найти книгу</button>
+        <input type="text" id="searchInput" placeholder="Название книги или имя автора (например, Абай, Толстой, Дюма)...">
+        <button onclick="processRequest('search')">Найти</button>
     </div>
 
-    <div style="text-align: center; color: #777; margin-bottom: 15px;">— ИЛИ —</div>
+    <div class="featured-title">🔥 Быстрый выбор / Популярное:</div>
+    <div class="quick-grid">
+        <div class="chip" onclick="quickSelect('Загадки квантового мира')">🔬 Квантовый мир</div>
+        <div class="chip" onclick="quickSelect('Қазақ әдебиеті (KK)')">🇰🇿 Дала сыры</div>
+        <div class="chip" onclick="quickSelect('Фантастика (RU)')">🚀 Космос & Sci-Fi</div>
+        <div class="chip" onclick="quickSelect('Триллер (RU)')">🕵️ Триллер года</div>
+    </div>
 
     <select id="genreSelect">
         <option value="Фантастика (RU)">Фантастика (RU)</option>
@@ -52,31 +73,50 @@
     
     <button onclick="processRequest('genre')" style="width: 100%;">Сгенерировать по жанру</button>
 
-    <div id="loading" class="loading">⏳ Загрузка текста, формирование PDF и генерация озвучки (первый запуск может занять до 30-40 сек)...</div>
+    <div id="loading" class="loading">⏳ Загрузка книги, верстка PDF и синтез голоса...</div>
 
     <div id="result" class="result-box">
-        <h2 id="bookTitle"></h2>
-        <p id="bookAuthor" style="color: #bbb; font-weight: bold;"></p>
+        <h2 id="bookTitle" style="margin-top:0;"></h2>
+        <p id="bookAuthor" style="color: #00e676; font-weight: bold; margin-bottom: 15px;"></p>
 
-        <a id="pdfLink" class="pdf-btn" href="#" target="_blank">📄 Скачать книгу в PDF</a>
+        <a id="pdfLink" class="pdf-btn" href="#" target="_blank">📄 Скачать PDF-книгу</a>
 
-        <h4>📖 Полный текст:</h4>
+        <h4>📖 Текст книги:</h4>
         <div id="bookText" class="text-container"></div>
 
-        <h4>🎧 Аудиоозвучка:</h4>
-        <audio id="audioPlayer" controls></audio>
+        <div class="audio-section">
+            <h4>🎧 Озвучка (Нейросеть):</h4>
+            <audio id="audioPlayer" controls style="width: 100%;"></audio>
+            <div class="speed-controls">
+                <span style="font-size: 12px; color: #888;">Скорость:</span>
+                <button class="speed-btn" onclick="setSpeed(1.0)">1.0x</button>
+                <button class="speed-btn" onclick="setSpeed(1.25)">1.25x</button>
+                <button class="speed-btn" onclick="setSpeed(1.5)">1.5x</button>
+                <button class="speed-btn" onclick="setSpeed(2.0)">2.0x</button>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
     const BACKEND_URL = "https://ai-video-library.onrender.com";
 
+    function setSpeed(speed) {
+        const audio = document.getElementById("audioPlayer");
+        audio.playbackRate = speed;
+    }
+
+    function quickSelect(val) {
+        document.getElementById("searchInput").value = val;
+        processRequest('search');
+    }
+
     async function processRequest(mode) {
         let query = "";
         if (mode === 'search') {
             query = document.getElementById("searchInput").value.trim();
             if (!query) {
-                alert("Пожалуйста, введите название книги или автора.");
+                alert("Пожалуйста, введите название книги или выбор из списка.");
                 return;
             }
         } else {
@@ -92,16 +132,9 @@
         try {
             const response = await fetch(`${BACKEND_URL}/generate`, {
                 method: "POST",
-                headers: { 
-                    "Content-Type": "application/json",
-                    "Accept": "application/json"
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ user_id: "user1", genre: query })
             });
-
-            if (!response.ok) {
-                throw new Error(`Ошибка сервера: ${response.status}`);
-            }
 
             const data = await response.json();
 
@@ -118,7 +151,7 @@
             loading.style.display = "none";
             result.style.display = "block";
         } catch (e) {
-            alert("Сервер поднимается из спящего режима или произошла ошибка: " + e.message + "\nПопробуйте повторить клик через 15-20 секунд.");
+            alert("Ошибка выполнения: " + e.message);
             loading.style.display = "none";
         }
     }

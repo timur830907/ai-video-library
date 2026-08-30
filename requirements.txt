@@ -1,5 +1,3 @@
 fastapi
 uvicorn
-edge-tts
-google-genai
-pydantic
+gTTS

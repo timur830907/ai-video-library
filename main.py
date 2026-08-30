@@ -13,7 +13,6 @@ from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
-# 1. Создаем объект приложения FastAPI
 app = FastAPI()
 
 app.add_middleware(
@@ -27,12 +26,9 @@ app.add_middleware(
 os.makedirs("static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# 2. Подключаем кириллический шрифт
 FONT_PATH = os.path.join(os.path.dirname(__file__), "DejaVuSans.ttf")
 if os.path.exists(FONT_PATH):
     pdfmetrics.registerFont(TTFont("DejaVuSans", FONT_PATH))
-else:
-    print(f"Warning: Font file not found at {FONT_PATH}")
 
 BOOKS_DATABASE = {}
 
@@ -61,23 +57,39 @@ def detect_voice(query: str):
 
 async def search_free_book_google(query: str):
     clean_query = query.split("(")[0].strip()
-    url = f"https://www.googleapis.com/books/v1/volumes?q={clean_query}&maxResults=5"
+    url = f"https://www.googleapis.com/books/v1/volumes?q={clean_query}&maxResults=5&langRestrict=ru"
     
     try:
         async with httpx.AsyncClient() as client:
-            resp = await client.get(url, timeout=6.0)
+            resp = await client.get(url, timeout=7.0)
             if resp.status_code == 200:
                 data = resp.json()
                 items = data.get("items", [])
                 for item in items:
                     info = item.get("volumeInfo", {})
+                    title = info.get("title", clean_query)
+                    authors = ", ".join(info.get("authors", [])) or "Классический автор"
                     desc = info.get("description", "")
-                    if desc and len(desc) > 50:
+                    snippet = item.get("searchInfo", {}).get("textSnippet", "")
+                    
+                    full_text = desc if desc else snippet
+                    
+                    if full_text:
                         return {
-                            "title": info.get("title", clean_query),
-                            "author": ", ".join(info.get("authors", ["Известный автор"])),
+                            "title": title,
+                            "author": authors,
                             "voice": detect_voice(query),
-                            "text": clean_html(desc)
+                            "text": clean_html(full_text)
+                        }
+                    else:
+                        categories = ", ".join(info.get("categories", ["Художественная литература"]))
+                        pub_date = info.get("publishedDate", "Не указан")
+                        return {
+                            "title": title,
+                            "author": authors,
+                            "voice": detect_voice(query),
+                            "text": f"Произведение «{title}» (Автор: {authors}). Категория: {categories}. Дата публикации / издания: {pub_date}. "
+                                    f"Это выдающееся литературное произведение из мировой базы данных Google Books."
                         }
     except Exception as e:
         print("Google Books API Error:", e)
@@ -91,16 +103,13 @@ def create_pdf(filename: str, title: str, author: str, text: str) -> str:
     
     font_name = "DejaVuSans" if os.path.exists(FONT_PATH) else "Helvetica"
     
-    # Заголовок
     c.setFont(font_name, 14)
     c.drawString(50, height - 50, title[:60])
     
-    # Автор
     c.setFont(font_name, 11)
     c.drawString(50, height - 70, f"Автор: {author[:60]}")
     c.line(50, height - 80, width - 50, height - 80)
     
-    # Текст
     c.setFont(font_name, 10)
     y = height - 100
     
@@ -144,29 +153,28 @@ def get_book_by_id(book_id: str):
 @app.post("/generate")
 async def generate_content(req: GenerateRequest):
     raw_query = req.genre.strip()
-    clean_genre_key = raw_query.split(" (")[0].strip()
-    hero = req.hero_name.strip() if req.hero_name else "Главный герой"
-    setting = req.theme_setting.strip() if req.theme_setting else "Наши дни"
+    hero = req.hero_name.strip() if req.hero_name else ""
+    setting = req.theme_setting.strip() if req.theme_setting else ""
     
     book = await search_free_book_google(raw_query)
     voice = detect_voice(raw_query)
 
     if not book:
+        clean_genre_key = raw_query.split(" (")[0].strip()
+        hero_text = hero if hero else "Главный герой"
         book = {
-            "title": f"Приключения {hero} в мире {clean_genre_key}",
+            "title": f"Приключения {hero_text} в мире {clean_genre_key}",
             "author": "ИИ Нейросеть",
             "voice": voice,
             "text": (
-                f"Эпоха: {setting}. "
-                f"В центре событий оказался {hero}. Всё началось незаметно, когда неожиданный поворот судьбы "
-                f"поставил перед персонажем задачу невероятной сложности. Проходя через испытания жанра {clean_genre_key}, "
-                f"{hero} открывает новые грани своих возможностей и движется навстречу своей главной цели."
+                f"В центре событий оказался {hero_text}. В сеттинге '{setting if setting else 'Наши дни'}' "
+                f"персонаж проходит через ключевые испытания жанра {clean_genre_key}."
             )
         }
     else:
-        if req.hero_name:
-            book["title"] = f"{book['title']} (Спецвыпуск с {hero})"
-            book["text"] = f"[Герой: {hero} | Эпоха: {setting}] " + book["text"]
+        if hero:
+            book["title"] = f"{book['title']} (Спецверсия)"
+            book["text"] = f"[Адаптация для: {hero}" + (f" | Сеттинг: {setting}" if setting else "") + f"]\n\n" + book["text"]
 
     book_id = uuid.uuid4().hex[:8]
 

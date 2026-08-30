@@ -33,25 +33,61 @@ if os.path.exists(FONT_PATH):
 
 BOOKS_DATABASE = {}
 
-# Расширенная карта ключевых слов (включая латиницу и транслит)
+# Встроенная подробная база классических произведений
 CLASSIC_BOOKS_DB = {
     "capital": {
         "keywords": ["capital", "маркс", "marx", "капитал"],
-        "title": "Капитал (Das Kapital)",
+        "title": "Капитал (Das Kapital) — Подробный конспект и главные идеи",
         "author": "Карл Маркс (Karl Marx)",
-        "text": "«Капитал» — фундаментальный труд Карла Маркса по политической экономии, посвященный критическому анализу капиталистической системы. В книге подробно рассматриваются понятия товара, стоимости, добавочной стоимости, накопления капитала и экономических законов развития общества."
+        "text": (
+            "«Капитал» (нем. Das Kapital) — главный труд Карла Маркса по политической экономии, "
+            "содержащий критический анализ капиталистической системы и механизмов её функционирования.\n\n"
+            "ОСНОВНЫЕ ПОЛОЖЕНИЯ И ГЛАВЫ:\n\n"
+            "1. Товар и деньги.\n"
+            "Богатство обществ, в которых господствует капиталистический способ производства, "
+            "выступает как «огромное скопление товаров». Товар обладает потребительной стоимостью "
+            "(способностью удовлетворять человеческую потребность) и меновой стоимостью "
+            "(пропорцией, в которой один товар обменивается на другой). В основе стоимости лежит "
+            "абстрактный человеческий труд, затраченный на производство товара.\n\n"
+            "2. Превращение денег в капитал.\n"
+            "Всеобщая формула капитала: Д — Т — Д' (Деньги — Товар — Деньги с приростом). "
+            "Первоначальная сумма денег увеличивается на величину прибавочной стоимости. Источником "
+            "прибавочной стоимости является покупка специфического товара — рабочей силы, способной "
+            "создавать стоимость больше собственной стоимости.\n\n"
+            "3. Производство абсолютной и относительной прибавочной стоимости.\n"
+            "Абсолютная прибавочная стоимость получаются путем удлинения рабочего дня. Относительная "
+            "прибавочная стоимость возникает за счет сокращения необходимого рабочего времени при "
+            "росте производительности труда и внедрении новых технологий.\n\n"
+            "4. Заработная плата и накопление капитала.\n"
+            "Заработная плата выступает как превращенная форма стоимости рабочей силы. Накопление "
+            "капитала приводит к росту органического строения капитала, что ведет к образованию "
+            "резервной армии труда (безработице) и циклическим экономическим кризисам."
+        )
     },
     "war_and_peace": {
         "keywords": ["война и мир", "war and peace", "толстой", "tolstoy"],
         "title": "Война и мир",
         "author": "Лев Толстой",
-        "text": "Роман-эпопея Льва Николаевича Толстого, охватывающий период наполеоновских войн. Труд глубинно раскрывает судьбы русского общества, философию истории, психологию личности и жизненный путь главных героев — Пьера Безухова, Андрея Болконского и Наташи Ростовой."
+        "text": (
+            "«Война и мир» — роман-эпопея Льва Николаевича Толстого, описывающий события "
+            "воин против Наполеона 1805–1812 годов.\n\n"
+            "Сюжет охватывает судьбы сотен героев, но в центре внимания остаются несколько семей: "
+            "Ростовы, Болконские, Безуховы и Курагины. Через поиск смысла жизни Пьером Безуховым "
+            "и Андреем Болконским автор раскрывает глубокие философские вопросы о роли личности в истории, "
+            "природе патриотизма, любви, смерти и духовного перерождения."
+        )
     },
     "crime": {
         "keywords": ["преступление", "достоевский", "dostoevsky", "punishment"],
         "title": "Преступление и наказание",
         "author": "Фёдор Достоевский",
-        "text": "Роман о психологических исканиях и нравственном кризисе Родиона Раскольникова. Труд исследует грани человеческой морали, искупления и душевного возрождения."
+        "text": (
+            "Социально-философский и психологический роман Фёдора Михайловича Достоевского.\n\n"
+            "Главный герой, бывший студент Родион Раскольников, создает теорию о делении людей "
+            "на «вошь дрожащую» и «право имеющих». Чтобы проверить свою идею, он совершает убийство "
+            "процентщицы. Однако духовные муки, совесть и встреча с Соней Мармеладовой заставляют "
+            "его пройти через искреннее раскаяние и путь к нравственному возрождению."
+        )
     }
 }
 
@@ -66,7 +102,7 @@ class GenerateRequest(BaseModel):
 def clean_html(raw_html: str) -> str:
     cleanr = re.compile('<.*?>')
     text = re.sub(cleanr, '', raw_html)
-    return text.replace('\n', ' ').strip()
+    return text.replace('\r', '').strip()
 
 
 def detect_voice(query: str):
@@ -81,8 +117,8 @@ def detect_voice(query: str):
 
 async def search_free_book(query: str):
     clean_query = query.split("(")[0].strip().lower()
-    
-    # 1. Поиск по локальной базе с сопоставлением ключевых слов (транслит / опечатки)
+
+    # 1. Сначала проверяем встроенную локальную базу (гарантирует подробный текст)
     for key, item in CLASSIC_BOOKS_DB.items():
         if any(kw in clean_query for kw in item["keywords"]):
             return {
@@ -92,58 +128,55 @@ async def search_free_book(query: str):
                 "text": item["text"]
             }
 
-    # 2. Полнотекстовый поиск Wikipedia Search API (исправляет опечатки)
+    # 2. Поиск полного текста страницы из Русской Викитеки (Wikisource)
+    try:
+        ws_url = f"https://ru.wikisource.org/w/api.php?action=query&list=search&srsearch={urllib.parse.quote(clean_query)}&format=json"
+        async with httpx.AsyncClient(headers={"User-Agent": "AILibraryApp/1.0"}, follow_redirects=True) as client:
+            resp = await client.get(ws_url, timeout=6.0)
+            if resp.status_code == 200:
+                results = resp.json().get("query", {}).get("search", [])
+                if results:
+                    page_title = results[0]["title"]
+                    content_url = f"https://ru.wikisource.org/w/api.php?action=query&prop=extracts&explaintext=1&titles={urllib.parse.quote(page_title)}&format=json"
+                    c_resp = await client.get(content_url, timeout=6.0)
+                    if c_resp.status_code == 200:
+                        pages = c_resp.json().get("query", {}).get("pages", {})
+                        for p_id, p_data in pages.items():
+                            full_text = p_data.get("extract", "")
+                            if len(full_text) > 200:
+                                return {
+                                    "title": page_title,
+                                    "author": "Викитека (Общественное достояние)",
+                                    "voice": detect_voice(query),
+                                    "text": full_text[:8000]  # Извлекаем объемный фрагмент до 8000 символов
+                                }
+    except Exception as e:
+        print("Wikisource error:", e)
+
+    # 3. Поиск статьи из Википедии через Wikipedia Extract API
     try:
         search_url = f"https://ru.wikipedia.org/w/api.php?action=query&list=search&srsearch={urllib.parse.quote(clean_query)}&format=json"
         async with httpx.AsyncClient(headers={"User-Agent": "AILibraryApp/1.0"}, follow_redirects=True) as client:
-            resp = await client.get(search_url, timeout=5.0)
+            resp = await client.get(search_url, timeout=6.0)
             if resp.status_code == 200:
                 search_results = resp.json().get("query", {}).get("search", [])
                 if search_results:
                     first_title = search_results[0]["title"]
-                    snippet = clean_html(search_results[0].get("snippet", ""))
-                    
-                    # Запрашиваем полный summary по найденной статье
-                    sum_url = f"https://ru.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(first_title)}"
-                    sum_resp = await client.get(sum_url, timeout=5.0)
+                    sum_url = f"https://ru.wikipedia.org/w/api.php?action=query&prop=extracts&explaintext=1&titles={urllib.parse.quote(first_title)}&format=json"
+                    sum_resp = await client.get(sum_url, timeout=6.0)
                     if sum_resp.status_code == 200:
-                        extract = sum_resp.json().get("extract", "")
-                        if extract and len(extract) > 40:
-                            return {
-                                "title": first_title,
-                                "author": "Энциклопедия / Классический фонд",
-                                "voice": detect_voice(query),
-                                "text": extract
-                            }
-                    if snippet and len(snippet) > 30:
-                        return {
-                            "title": first_title,
-                            "author": "Литературная справка",
-                            "voice": detect_voice(query),
-                            "text": f"Обзор произведения «{first_title}»: {snippet}..."
-                        }
+                        pages = sum_resp.json().get("query", {}).get("pages", {})
+                        for p_id, p_data in pages.items():
+                            extract = p_data.get("extract", "")
+                            if extract and len(extract) > 100:
+                                return {
+                                    "title": first_title,
+                                    "author": "Энциклопедический фонд",
+                                    "voice": detect_voice(query),
+                                    "text": extract[:8000]
+                                }
     except Exception as e:
         print("Wiki search error:", e)
-
-    # 3. Резервный поиск через Google Books API
-    try:
-        gb_url = f"https://www.googleapis.com/books/v1/volumes?q={urllib.parse.quote(clean_query)}&maxResults=3"
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.get(gb_url)
-            if resp.status_code == 200:
-                items = resp.json().get("items", [])
-                for item in items:
-                    info = item.get("volumeInfo", {})
-                    desc = info.get("description", "")
-                    if desc:
-                        return {
-                            "title": info.get("title", query),
-                            "author": ", ".join(info.get("authors", ["Известный автор"])),
-                            "voice": detect_voice(query),
-                            "text": clean_html(desc)
-                        }
-    except Exception as e:
-        print("Google Books Error:", e)
 
     return None
 
@@ -152,35 +185,48 @@ def create_pdf(filename: str, title: str, author: str, text: str) -> str:
     pdf_path = os.path.join("static", filename)
     c = canvas.Canvas(pdf_path, pagesize=letter)
     width, height = letter
-    
+
     font_name = "DejaVuSans" if os.path.exists(FONT_PATH) else "Helvetica"
-    
+
     c.setFont(font_name, 14)
     c.drawString(50, height - 50, title[:60])
-    
+
     c.setFont(font_name, 11)
     c.drawString(50, height - 70, f"Автор: {author[:60]}")
     c.line(50, height - 80, width - 50, height - 80)
-    
+
     c.setFont(font_name, 10)
     y = height - 100
-    
-    words = text.split()
-    line = ""
-    for word in words:
-        if len(line + " " + word) < 65:
-            line += " " + word if line else word
-        else:
+
+    # Разбиваем текст по абзацам и строкам для красивого форматирования в PDF
+    paragraphs = text.split("\n")
+    for paragraph in paragraphs:
+        if not paragraph.strip():
+            y -= 10
+            continue
+
+        words = paragraph.split()
+        line = ""
+        for word in words:
+            if len(line + " " + word) < 65:
+                line += " " + word if line else word
+            else:
+                c.drawString(50, y, line)
+                y -= 15
+                line = word
+                if y < 50:
+                    c.showPage()
+                    c.setFont(font_name, 10)
+                    y = height - 50
+        if line:
             c.drawString(50, y, line)
             y -= 15
-            line = word
-            if y < 50:
-                c.showPage()
-                c.setFont(font_name, 10)
-                y = height - 50
-    if line:
-        c.drawString(50, y, line)
-        
+
+        if y < 50:
+            c.showPage()
+            c.setFont(font_name, 10)
+            y = height - 50
+
     c.save()
     return f"/static/{filename}"
 
@@ -207,27 +253,27 @@ async def generate_content(req: GenerateRequest):
     raw_query = req.genre.strip()
     hero = req.hero_name.strip() if req.hero_name else ""
     setting = req.theme_setting.strip() if req.theme_setting else ""
-    
+
     book = await search_free_book(raw_query)
     voice = detect_voice(raw_query)
 
     if not book:
         clean_genre_key = raw_query.split(" (")[0].strip()
         book = {
-            "title": f"Литературный обзор: {clean_genre_key}",
-            "author": "Мировая библиотека",
+            "title": f"Произведение: {clean_genre_key}",
+            "author": "Литературный архив",
             "voice": voice,
             "text": (
-                f"Произведение по запросу «{clean_genre_key}». "
-                f"В рамках темы рассмотрены ключевые аспекты жанра и сюжетные линии. "
-                + (f"Главный персонаж: {hero}. " if hero else "")
-                + (f"Сеттинг: {setting}." if setting else "")
+                f"Развернутое произведение по запросу «{clean_genre_key}».\n\n"
+                f"В данном разделе представлены ключевые характеристики произведения, его фабула и концепция.\n"
+                + (f"Главный персонаж: {hero}.\n" if hero else "")
+                + (f"Исторический сеттинг и атмосфера: {setting}.\n" if setting else "")
             )
         }
     else:
         if hero:
             book["title"] = f"{book['title']} (Версия с {hero})"
-            book["text"] = f"[Персонализированная адаптация для: {hero}" + (f" | Сеттинг: {setting}" if setting else "") + f"]\n\n" + book["text"]
+            book["text"] = f"[Персонализированный вариант для: {hero}" + (f" | Сеттинг: {setting}" if setting else "") + f"]\n\n" + book["text"]
 
     book_id = uuid.uuid4().hex[:8]
 

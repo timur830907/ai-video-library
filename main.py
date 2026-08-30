@@ -1,6 +1,8 @@
 import os
+import re
 import uuid
 import random
+import httpx
 import edge_tts
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,81 +27,70 @@ class GenerateRequest(BaseModel):
     user_id: str
     genre: str
 
-def generate_multilingual_story(genre: str):
-    g = genre.strip().lower()
+def clean_html(raw_html: str) -> str:
+    """Очищает полученный из API текст от тегов HTML"""
+    cleanr = re.compile('<.*?>')
+    cleantext = re.sub(cleanr, '', raw_html)
+    return cleantext.replace('\n', ' ').strip()
 
-    # Казахский язык
-    if "қазақ" in g or "эпос" in g or "детектив (kk)" in g or "романдар" in g:
+def detect_language_and_voice(text_or_genre: str):
+    """Определяет язык и соответствующий голосовой движок EdgeTTS"""
+    # Казахский
+    if any(c in text_or_genre for c in "ӘәҒғҚқҢңӨөҰұҮүІіҺһ") or "Қазақ" in text_or_genre or "Дала" in text_or_genre:
+        return "kk", "kk-KZ-DauletNeural"
+    # Английский
+    elif re.search(r'[a-zA-Z]', text_or_genre) and not re.search(r'[а-яА-Я]', text_or_genre):
+        return "en", "en-US-ChristopherNeural"
+    # Русский (по умолчанию)
+    else:
+        return "ru", "ru-RU-DmitryNeural"
+
+async def fetch_book_from_google(genre: str):
+    lang_code, voice = detect_language_and_voice(genre)
+    url = f"https://www.googleapis.com/books/v1/volumes?q={genre}&langRestrict={lang_code}&maxResults=20"
+    
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            res = await client.get(url)
+            if res.status_code == 200:
+                data = res.json()
+                items = data.get("items", [])
+                valid_items = [i for i in items if i.get("volumeInfo", {}).get("description")]
+                
+                if valid_items:
+                    chosen = random.choice(valid_items)["volumeInfo"]
+                    desc = clean_html(chosen.get("description", ""))
+                    if len(desc) > 50:
+                        return {
+                            "title": chosen.get("title", genre),
+                            "author": ", ".join(chosen.get("authors", ["Неизвестный автор"])),
+                            "text": desc,
+                            "voice": voice
+                        }
+    except Exception as e:
+        print(f"Google Books API Error: {e}")
+        
+    # Резервный развернутый вариант (если API отдал пустой ответ)
+    if lang_code == "kk":
         return {
             "title": "Көксерек пен Дала сыры",
             "author": "Мұхтар Әуезов",
-            "voice": "kk-KZ-DauletNeural",
-            "text": (
-                "Ұлан-байтақ кең далада соққан суық жел түнгі аспанды бұлтпен торлады. "
-                "Қараңғы түнде алыстан ұлыған бөрінің даусы естіліп, ауыл шетіндегі заңғар таулардың етегіне тарады. "
-                "Жас жылқышы ат үстінде отырып, айналаға жіті көз тастады. "
-                "Осы бір түнде даланың ұлы сыры мен батырлардың көне аңыздары қайта жаңғырғандай болды."
-            )
+            "text": "Ұлан-байтақ кең далада соққан суық жел түнгі аспанды бұлтпен торлады. Қараңғы түнде алыстан ұлыған бөрінің даусы естіліп, ауыл шетіндегі заңғар таулардың етегіне тарады. Жас жылқышы ат үстінде отырып, айналаға жіті көз тастады. Осы бір түнде даланың ұлы сыры мен батырлардың көне аңыздары қайта жаңғырғандай болды.",
+            "voice": voice
         }
-
-    # Английский язык
-    elif "sci-fi" in g or "fantasy (en)" in g or "thriller (en)" in g or "english" in g:
+    elif lang_code == "en":
         return {
-            "title": "Chronicles of the Deep Space",
+            "title": "Chronicles of Deep Space",
             "author": "Arthur C. Clarke",
-            "voice": "en-US-ChristopherNeural",
-            "text": (
-                "The flagship research vessel emerged from hyperspace at the outer boundary of Sector 7. "
-                "Before the crew lay an uncharted planet, shrouded in a dense layer of violet clouds. "
-                "Sensors immediately detected a rhythmic artificial signal originating from deep inside a massive crater. "
-                "The captain issued the order to prepare the reconnaissance shuttle for landing."
-            )
-        }
-
-    # Русский язык (по умолчанию и для других жанров)
-    elif "комед" in g:
-        return {
-            "title": "Операция 'Неуклюжий агент'",
-            "author": "Марк Твен",
-            "voice": "ru-RU-DmitryNeural",
-            "text": (
-                "Попытка незаметно внедрить нового сотрудника в отдел продаж провалилась в первые же пять минут. "
-                "Сначала он случайно перепутал кабинеты и провел часовую презентацию перед курьерами. "
-                "Затем, пытаясь исправить ситуацию, пролил кофе на главный сервер компании, вызвав перезагрузку всей сети."
-            )
-        }
-    elif "боевик" in g:
-        return {
-            "title": "Последний рубеж обороны",
-            "author": "Джон Хантер",
-            "voice": "ru-RU-DmitryNeural",
-            "text": (
-                "Взрыв прогремел на верхнем этаже комплекса, разбив панорамные стекла и озарив ночное небо вспышкой. "
-                "Спецотряд заблокировал все выходы, но у группы эвакуации оставался последний шанс прорваться через крышу. "
-                "Перезарядив автомат, командир отдал сигнал к началу операции."
-            )
-        }
-    elif "триллер" in g:
-        return {
-            "title": "Тень над городом",
-            "author": "Стивен Кинг",
-            "voice": "ru-RU-DmitryNeural",
-            "text": (
-                "Телефонный звонок раздался в три часа ночи, разрушив тишину пустой квартиры. "
-                "Детектив поднял трубку и услышал лишь тяжелое дыхание и знакомый шепот. "
-                "Загадочный аноним знал детали дела десятилетней давности, о которых не упоминалось ни в одном отчете."
-            )
+            "text": "The flagship research vessel emerged from hyperspace at the outer boundary of Sector 7. Before the crew lay an uncharted planet, shrouded in a dense layer of violet clouds. Sensors immediately detected a rhythmic artificial signal originating from deep inside a massive crater. The captain issued the order to prepare the reconnaissance shuttle for landing.",
+            "voice": voice
         }
     else:
         return {
-            "title": "Звездные скитальцы",
-            "author": "Аркадий Стругацкий",
-            "voice": "ru-RU-DmitryNeural",
-            "text": (
-                "Флагманский исследовательский крейсер вышел из гиперпространственного прыжка у границы сектора Орион. "
-                "Перед экипажем простиралась безымянная планета, окутанная плотным слоем фиолетовой атмосферы. "
-                "Детекторы зафиксировали регулярный импульсный сигнал из глубин тектонического разлома."
-            )
+            "title": "Операция 'Неуклюжий агент'",
+            "author": "Марк Твен",
+            "text": "Попытка незаметно внедрить нового сотрудника в отдел продаж провалилась в первые же пять минут. Сначала он случайно перепутал кабинеты и провел часовую презентацию маркетинговой стратегии перед курьерами. Затем, пытаясь исправить ситуацию, пролил кофе на главный сервер компании, вызвав перезагрузку всей сети. Однако благодаря невероятной харизме, к концу дня его назначили руководителем антикризисного комитета.",
+            "voice": voice
         }
 
 VIDEO_SOURCES = [
@@ -109,24 +100,24 @@ VIDEO_SOURCES = [
 
 @app.get("/")
 def root():
-    return {"status": "ok", "message": "Multilingual TTS API running"}
+    return {"status": "ok"}
 
 @app.post("/generate")
 async def generate_content(req: GenerateRequest):
-    story = generate_multilingual_story(req.genre)
+    book = await fetch_book_from_google(req.genre)
 
     audio_filename = f"audio_{uuid.uuid4().hex[:8]}.mp3"
     audio_path = os.path.join("static", audio_filename)
 
-    # Генерация озвучки с выбором соответствующего голоса и языка
-    communicate = edge_tts.Communicate(story["text"], voice=story["voice"])
+    # Генерация длительной озвучки на родном языке книги
+    communicate = edge_tts.Communicate(book["text"], voice=book["voice"])
     await communicate.save(audio_path)
 
     return {
         "book": {
-            "title": story["title"],
-            "author": story["author"],
-            "text": story["text"]
+            "title": book["title"],
+            "author": book["author"],
+            "text": book["text"]
         },
         "audio_url": f"/static/{audio_filename}",
         "video_url": random.choice(VIDEO_SOURCES)

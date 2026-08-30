@@ -10,51 +10,52 @@
         h1 { font-size: 26px; margin-bottom: 8px; text-align: center; }
         p.subtitle { color: #8e8e93; font-size: 14px; margin-bottom: 25px; text-align: center; }
         
-        .search-box { display: flex; gap: 10px; margin-bottom: 15px; }
-        input[type="text"], select { padding: 14px; border-radius: 8px; border: 1px solid #333; font-size: 15px; background: #222226; color: #fff; outline: none; }
-        input[type="text"] { flex: 1; }
-        select { width: 100%; margin-bottom: 15px; }
+        .section-title { font-size: 14px; color: #aaa; margin: 20px 0 10px; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .custom-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        input[type="text"], select { padding: 14px; border-radius: 8px; border: 1px solid #333; font-size: 15px; background: #222226; color: #fff; outline: none; box-sizing: border-box; width: 100%; }
         
         button { padding: 14px 20px; border-radius: 8px; border: none; font-size: 15px; background: #e50914; color: #fff; font-weight: 600; cursor: pointer; transition: 0.2s; }
-        button:hover { background: #b80710; transform: translateY(-1px); }
+        button:hover { background: #b80710; }
         
-        /* Быстрый выбор / Тренд дня */
-        .featured-title { font-size: 14px; color: #aaa; margin: 20px 0 10px; text-transform: uppercase; letter-spacing: 1px; }
-        .quick-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 20px; }
-        .chip { background: #25252b; padding: 12px; border-radius: 8px; text-align: center; cursor: pointer; border: 1px solid #333; font-size: 13px; font-weight: 500; transition: 0.2s; }
-        .chip:hover { background: #e50914; border-color: #e50914; }
+        .share-btn { background: #2AABEE; margin-left: 10px; }
+        .share-btn:hover { background: #229ed9; }
 
         .result-box { background: #222226; padding: 25px; border-radius: 12px; margin-top: 25px; display: none; text-align: left; border: 1px solid #333; }
-        .pdf-btn { display: inline-block; background: #0288d1; color: #fff; padding: 12px 18px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 15px 0; transition: 0.2s; }
-        .pdf-btn:hover { background: #0277bd; }
+        .pdf-btn { display: inline-block; background: #0288d1; color: #fff; padding: 12px 18px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 15px 0; }
         
         .text-container { max-height: 400px; overflow-y: auto; background: #161618; padding: 20px; border-radius: 8px; line-height: 1.7; white-space: pre-wrap; font-size: 15px; color: #ddd; border: 1px solid #2a2a30; margin-bottom: 20px; }
         
-        /* Аудио контроллер */
         .audio-section { background: #1a1a1e; padding: 15px; border-radius: 8px; border: 1px solid #2a2a30; }
         .speed-controls { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
         .speed-btn { background: #333; padding: 6px 12px; border-radius: 6px; font-size: 12px; }
         
+        .recent-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 10px; }
+        .recent-card { background: #222226; padding: 12px; border-radius: 8px; border: 1px solid #333; cursor: pointer; }
+        .recent-card:hover { border-color: #e50914; }
+        .recent-card h5 { margin: 0 0 5px 0; color: #fff; }
+        .recent-card p { margin: 0; font-size: 12px; color: #888; }
+
         .loading { display: none; color: #ffca28; text-align: center; margin: 15px 0; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h1>📖 ИИ Библиотека & Аудиокниги</h1>
-    <p class="subtitle">Ищите мгновенно по библиотеке или генерируйте ункальный сюжет с ИИ-озвучкой</p>
+    <h1>📖 Персональная ИИ Библиотека</h1>
+    <p class="subtitle">Создавайте уникальные аудиокниги со своим именем или делитесь ими с друзьями</p>
 
-    <div class="search-box">
-        <input type="text" id="searchInput" placeholder="Название книги или имя автора (например, Абай, Толстой, Дюма)...">
-        <button onclick="processRequest('search')">Найти</button>
+    <!-- 1. Персонализация -->
+    <div class="section-title">👤 Персонализация главного героя:</div>
+    <div class="custom-fields">
+        <input type="text" id="heroInput" placeholder="Имя главного героя (например, Тимур)">
+        <input type="text" id="settingInput" placeholder="Эпоха/Локация (например, Марс 2080 или Древняя степь)">
     </div>
 
-    <div class="featured-title">🔥 Быстрый выбор / Популярное:</div>
-    <div class="quick-grid">
-        <div class="chip" onclick="quickSelect('Загадки квантового мира')">🔬 Квантовый мир</div>
-        <div class="chip" onclick="quickSelect('Қазақ әдебиеті (KK)')">🇰🇿 Дала сыры</div>
-        <div class="chip" onclick="quickSelect('Фантастика (RU)')">🚀 Космос & Sci-Fi</div>
-        <div class="chip" onclick="quickSelect('Триллер (RU)')">🕵️ Триллер года</div>
+    <!-- Выбор жанра и поиск -->
+    <div class="section-title">📚 Жанр или Поиск:</div>
+    <div style="margin-bottom: 15px;">
+        <input type="text" id="searchInput" placeholder="Название книги или автора (или оставьте пустым для жанра)">
     </div>
 
     <select id="genreSelect">
@@ -71,15 +72,21 @@
         <option value="Дала сыры (KK)">Дала сыры (KK)</option>
     </select>
     
-    <button onclick="processRequest('genre')" style="width: 100%;">Сгенерировать по жанру</button>
+    <button onclick="processRequest()" style="width: 100%; margin-top: 10px;">✨ Сгенерировать аудиокнигу</button>
 
     <div id="loading" class="loading">⏳ Загрузка книги, верстка PDF и синтез голоса...</div>
 
+    <!-- Результат -->
     <div id="result" class="result-box">
         <h2 id="bookTitle" style="margin-top:0;"></h2>
         <p id="bookAuthor" style="color: #00e676; font-weight: bold; margin-bottom: 15px;"></p>
 
-        <a id="pdfLink" class="pdf-btn" href="#" target="_blank">📄 Скачать PDF-книгу</a>
+        <div>
+            <a id="pdfLink" class="pdf-btn" href="#" target="_blank">📄 Скачать PDF</a>
+            <!-- 2. Кнопка Поделиться -->
+            <button class="share-btn" onclick="shareTelegram()">✈️ В Telegram</button>
+            <button class="share-btn" style="background:#555;" onclick="copyBookLink()">📋 Скопировать ссылку</button>
+        </div>
 
         <h4>📖 Текст книги:</h4>
         <div id="bookText" class="text-container"></div>
@@ -96,32 +103,29 @@
             </div>
         </div>
     </div>
+
+    <!-- 3. Галерея последних генераций -->
+    <div class="section-title" style="margin-top: 30px;">🔥 Недавно созданные книги:</div>
+    <div id="recentGrid" class="recent-grid">
+        <p style="color:#666; font-size:13px;">Загрузка истории...</p>
+    </div>
 </div>
 
 <script>
     const BACKEND_URL = "https://ai-video-library.onrender.com";
+    let currentBookId = "";
 
     function setSpeed(speed) {
-        const audio = document.getElementById("audioPlayer");
-        audio.playbackRate = speed;
+        document.getElementById("audioPlayer").playbackRate = speed;
     }
 
-    function quickSelect(val) {
-        document.getElementById("searchInput").value = val;
-        processRequest('search');
-    }
+    async function processRequest() {
+        const searchVal = document.getElementById("searchInput").value.trim();
+        const genreVal = document.getElementById("genreSelect").value;
+        const heroName = document.getElementById("heroInput").value.trim();
+        const themeSetting = document.getElementById("settingInput").value.trim();
 
-    async function processRequest(mode) {
-        let query = "";
-        if (mode === 'search') {
-            query = document.getElementById("searchInput").value.trim();
-            if (!query) {
-                alert("Пожалуйста, введите название книги или выбор из списка.");
-                return;
-            }
-        } else {
-            query = document.getElementById("genreSelect").value;
-        }
+        const query = searchVal || genreVal;
 
         const loading = document.getElementById("loading");
         const result = document.getElementById("result");
@@ -133,28 +137,81 @@
             const response = await fetch(`${BACKEND_URL}/generate`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ user_id: "user1", genre: query })
+                body: JSON.stringify({
+                    user_id: "user1",
+                    genre: query,
+                    hero_name: heroName,
+                    theme_setting: themeSetting
+                })
             });
 
             const data = await response.json();
-
-            document.getElementById("bookTitle").innerText = data.book.title;
-            document.getElementById("bookAuthor").innerText = "Автор: " + data.book.author;
-            document.getElementById("bookText").innerText = data.book.text;
-
-            const pdfBtn = document.getElementById("pdfLink");
-            pdfBtn.href = BACKEND_URL + data.pdf_url;
-
-            const audio = document.getElementById("audioPlayer");
-            audio.src = BACKEND_URL + data.audio_url;
-
-            loading.style.display = "none";
-            result.style.display = "block";
+            displayBook(data);
+            loadRecent();
         } catch (e) {
-            alert("Ошибка выполнения: " + e.message);
+            alert("Ошибка сети или бэкенд просыпается: " + e.message);
             loading.style.display = "none";
         }
     }
+
+    function displayBook(data) {
+        currentBookId = data.id;
+        document.getElementById("bookTitle").innerText = data.book.title;
+        document.getElementById("bookAuthor").innerText = "Автор: " + data.book.author;
+        document.getElementById("bookText").innerText = data.book.text;
+
+        document.getElementById("pdfLink").href = BACKEND_URL + data.pdf_url;
+        document.getElementById("audioPlayer").src = BACKEND_URL + data.audio_url;
+
+        document.getElementById("loading").style.display = "none";
+        document.getElementById("result").style.display = "block";
+    }
+
+    function shareTelegram() {
+        const text = encodeURIComponent(`Послушай персонализированную аудиокнигу "${document.getElementById("bookTitle").innerText}"!`);
+        const url = encodeURIComponent(window.location.origin + window.location.pathname + "?id=" + currentBookId);
+        window.open(`https://t.me/share/url?url=${url}&text=${text}`, '_blank');
+    }
+
+    function copyBookLink() {
+        const shareUrl = window.location.origin + window.location.pathname + "?id=" + currentBookId;
+        navigator.clipboard.writeText(shareUrl);
+        alert("Ссылка на книгу скопирована!");
+    }
+
+    async function loadRecent() {
+        try {
+            const resp = await fetch(`${BACKEND_URL}/recent`);
+            if (resp.ok) {
+                const list = await resp.json();
+                const grid = document.getElementById("recentGrid");
+                grid.innerHTML = "";
+                list.forEach(item => {
+                    const card = document.createElement("div");
+                    card.className = "recent-card";
+                    card.onclick = () => displayBook(item);
+                    card.innerHTML = `<h5>${item.book.title}</h5><p>${item.book.author}</p>`;
+                    grid.appendChild(card);
+                });
+            }
+        } catch (e) {}
+    }
+
+    // Загрузка книги по ID из URL при открытии ссылки
+    window.onload = async () => {
+        loadRecent();
+        const urlParams = new URLSearchParams(window.location.search);
+        const bookId = urlParams.get('id');
+        if (bookId) {
+            try {
+                const resp = await fetch(`${BACKEND_URL}/book/${bookId}`);
+                if (resp.ok) {
+                    const data = await resp.json();
+                    displayBook(data);
+                }
+            } catch (e) {}
+        }
+    };
 </script>
 
 </body>

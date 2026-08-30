@@ -1,94 +1,101 @@
 import os
-import json
+import uuid
 import asyncio
-from datetime import datetime, timedelta
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi import FastAPI, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-import edge_tts
-from google import genai
-from google.genai import types as genai_types
+from gtts import gTTS
 
-app = FastAPI()
+# Автоматическое создание папки для статических файлов
+os.makedirs("static", exist_ok=True)
 
-# Ключи (можно задать здесь или через переменные окружения)
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "YOUR_GEMINI_API_KEY")
-ai_client = genai.Client(api_key=GEMINI_API_KEY)
+app = FastAPI(title="AI Video Library API")
 
-# База пользователей (в будущем заменить на БД PostgreSQL / SQLite)
-USERS_DB = {
-    "test_user": {
-        "created_at": datetime.now(),  # Дата регистрации
-        "is_paid": False
-    }
-}
+# Настройка CORS для работы с GitHub Pages
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Подключение статической папки для раздачи аудиофайлов
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 class GenerateRequest(BaseModel):
     user_id: str
     genre: str
 
-# Функция проверки 30 дней бесплатного периода
-def check_subscription(user_id: str):
-    user = USERS_DB.get(user_id)
-    if not user:
-        # Автоматическая регистрация нового пользователя при первом запросе
-        USERS_DB[user_id] = {"created_at": datetime.now(), "is_paid": False}
-        return USERS_DB[user_id]
-    
-    days_passed = (datetime.now() - user["created_at"]).days
-    if days_passed > 30 and not user["is_paid"]:
-        raise HTTPException(
-            status_code=402, 
-            detail="30 дней бесплатного периода истекли. Оплатите подписку через Kaspi QR."
-        )
-    return user
 
-@app.get("/", response_class=HTMLResponse)
-async def read_root():
-    return FileResponse("index.html")
+# Фейковое хранилище пользователей и периода подписки
+users_db = {
+    "user_github_demo": {"days_left": 30}
+}
 
-@app.post("/api/generate")
+
+@app.get("/")
+def root():
+    return {"status": "ok", "message": "AI Video Library Backend is running!"}
+
+
+@app.post("/generate")
 async def generate_content(req: GenerateRequest):
-    # 1. Проверка подписки (30 дней)
-    check_subscription(req.user_id)
-    
-    # 2. Генерация текста через Gemini API
-    prompt = f"""Напиши отрывок из книги в жанре {req.genre}. 
-    Верни JSON с ключами: "title", "author", "text" (текст 30-40 слов)."""
-    
-    response = await asyncio.to_thread(
-        ai_client.models.generate_content,
-        model="gemini-2.5-flash",
-        contents=prompt,
-        config=genai_types.GenerateContentConfig(
-            response_mime_type="application/json"
+    # Проверка подписки / триала
+    user = users_db.get(req.user_id, {"days_left": 30})
+    if user["days_left"] <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail="Subscription expired"
         )
+
+    # Генерация текста на основе выбранного жанра
+    genre_content = {
+        "Фантастика": {
+            "title": "Звездный рубеж",
+            "author": "ИИ Фантаст",
+            "text": "Корабль 'Гелиос' вышел из гиперпространства на орбите неизвестной планеты. Детекторы зафиксировали странный сигнал из глубин кратера."
+        },
+        "Детектив": {
+            "title": "Тайна вечернего экспресса",
+            "author": "ИИ Детектив",
+            "text": "Дождь стучал по стеклу купе. Сыщик внимательно осмотрел оставленный на столе конверт с сургучной печатью."
+        },
+        "Романтика": {
+            "title": "Встреча у моря",
+            "author": "ИИ Романтик",
+            "text": "Закат окрасил волны в золотистый цвет. Океанский бриз приносил прохладу, пока они молча шли по песчаному берегу."
+        },
+        "Ужасы": {
+            "title": "Шепот в темноте",
+            "author": "ИИ Хоррор",
+            "text": "Старый дом скрипел под порывами ветра. Из подвала донесся тихий, но отчетливый звук шагов."
+        }
+    }
+
+    book_info = genre_content.get(
+        req.genre,
+        {
+            "title": "Сгенерированная история",
+            "author": "ИИ Автор",
+            "text": f"История в жанре {req.genre}."
+        }
     )
-    book_data = json.loads(response.text)
-    
-    # 3. Озвучка (TTS)
-    audio_path = f"static/audio_{req.user_id}.mp3"
-    os.makedirs("static", exist_ok=True)
-    
-    text_to_speech = f"Книга {book_data['title']}. Автор {book_data['author']}. {book_data['text']}"
-    communicate = edge_tts.Communicate(text_to_speech, "ru-RU-DmitryNeural")
-    await communicate.save(audio_path)
-    
-    return {
-        "status": "success",
-        "book": book_data,
-        "audio_url": f"/{audio_path}",
-        # Ссылка на видео (тут подключается D-ID / HeyGen / Runway API)
-        "video_url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
-    }
 
-@app.post("/api/kaspi/pay")
-async def create_kaspi_pay(user_id: str):
-    # Генерация ссылки/QR Kaspi Pay
-    return {
-        "qr_url": f"https://kaspi.kz/pay/link?amount=2990&comment=Subscription_{user_id}"
-    }
+    # Генерация аудиозаписи с помощью gTTS (Google Text-to-Speech)
+    audio_filename = f"audio_{uuid.uuid4().hex[:8]}.mp3"
+    audio_path = os.path.join("static", audio_filename)
+    
+    tts = gTTS(text=book_info["text"], lang="ru")
+    tts.save(audio_path)
 
-# Монтируем папку со статикой для отдачи аудио/видео файлов
-app.mount("/static", StaticFiles(directory="static"), name="static")
+    # Пример ссылки на фоновое видео (Pexels / CDN)
+    video_url = "https://assets.mixkit.co/videos/preview/mixkit-starry-night-sky-with-a-flying-meteor-42864-large.mp4"
+
+    return {
+        "book": book_info,
+        "audio_url": f"/static/{audio_filename}",
+        "video_url": video_url
+    }

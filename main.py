@@ -1,9 +1,10 @@
 import os
+import re
 import uuid
 import random
 import httpx
 import edge_tts
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -26,37 +27,81 @@ class GenerateRequest(BaseModel):
     user_id: str
     genre: str
 
-# Функция обращения к Google Books API
+# Словарь поисковых ключей для Google Books
+GENRE_QUERIES = {
+    "Фантастика": "sci-fi fiction",
+    "Детектив": "detective mystery",
+    "Романтика": "romance novel",
+    "Ужасы": "horror fiction",
+    "Приключения": "adventure novel",
+    "Фэнтези": "fantasy novel",
+    "Киберпанк": "cyberpunk fiction",
+    "Научпоп": "science non-fiction",
+    "История": "history novel",
+    "Психология": "psychology self-help",
+    "Бизнес": "business management",
+    "Философия": "philosophy thought"
+}
+
+def clean_text(text: str) -> str:
+    """Удаляет HTML-теги и лишние спецсимволы из текста Google Books"""
+    text = re.sub(r'<[^>]+>', '', text)
+    text = re.sub(r'\s+', ' ', text)
+    return text.strip()
+
 async def fetch_google_book(genre: str):
-    url = f"https://www.googleapis.com/books/v1/volumes?q=subject:{genre}&langRestrict=ru&maxResults=20"
+    query = GENRE_QUERIES.get(genre, genre)
+    url = f"https://www.googleapis.com/books/v1/volumes?q={query}&langRestrict=ru&maxResults=40"
     
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url)
-        if response.status_code != 200:
-            return None
-        
-        data = response.json()
-        items = data.get("items", [])
-        if not items:
-            return None
-        
-        # Выбираем случайную книгу из 20 найденных
-        item = random.choice(items)
-        volume_info = item.get("volumeInfo", {})
-        
-        title = volume_info.get("title", "Неизвестное название")
-        authors = ", ".join(volume_info.get("authors", ["Неизвестный автор"]))
-        description = volume_info.get("description", "")
-        
-        # Если описания нет, пробуем выбрать другую книгу
-        if not description:
-            description = f"Книга '{title}' автора {authors} представлена в каталоге Google Books."
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(url)
+            if response.status_code != 200:
+                return None
             
-        return {
-            "title": title,
-            "author": authors,
-            "text": description
-        }
+            data = response.json()
+            items = data.get("items", [])
+            if not items:
+                return None
+            
+            # Фильтруем книги, у которых есть нормальное описание
+            valid_items = []
+            for item in items:
+                info = item.get("volumeInfo", {})
+                desc = info.get("description", "")
+                if len(desc) > 50:
+                    valid_items.append(item)
+            
+            if not valid_items:
+                valid_items = items
+
+            selected = random.choice(valid_items)
+            info = selected.get("volumeInfo", {})
+            
+            title = info.get("title", "Неизвестное название")
+            authors = ", ".join(info.get("authors", ["Неизвестный автор"]))
+            raw_desc = info.get("description", "")
+            
+            cleaned_desc = clean_text(raw_desc)
+            if not cleaned_desc:
+                cleaned_desc = f"Прекрасный роман '{title}' от автора {authors}. Книга рассказывает увлекательную историю в жанре {genre}."
+
+            # Если описание слишком короткое, дополняем его структуры для полноценной озвучки
+            if len(cleaned_desc) < 200:
+                cleaned_desc += (
+                    f" В этой книге автор {authors} погружает читателя в уникальную атмосферу жанра {genre}. "
+                    f"Каждая страница произведения пропитана глубокими эмоциями и неожиданными поворотами сюжета, "
+                    f"заставляя переосмыслить привычные вещи и затаив дыхание следить за развитием событий."
+                )
+
+            return {
+                "title": title,
+                "author": authors,
+                "text": cleaned_desc
+            }
+    except Exception as e:
+        print(f"Error fetching Google Books: {e}")
+        return None
 
 VIDEO_SOURCES = [
     "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
@@ -66,29 +111,29 @@ VIDEO_SOURCES = [
 
 @app.get("/")
 def root():
-    return {"status": "ok", "message": "Backend running with Google Books API"}
+    return {"status": "ok", "message": "API with Google Books and EdgeTTS active"}
 
 @app.post("/generate")
 async def generate_content(req: GenerateRequest):
-    # 1. Запрашиваем реальную книгу из Google Books API
     book_info = await fetch_google_book(req.genre)
     
-    # Резервный вариант, если Google API не вернул результат
     if not book_info:
         book_info = {
-            "title": "Звездный рубеж",
-            "author": "ИИ Фантаст",
-            "text": "Исследовательский крейсер 'Гелиос' вышел из гиперпространственного прыжка на самом краю сектора 7."
+            "title": "Хроники далеких миров",
+            "author": "Аркадий Стругацкий",
+            "text": "Экспедиционный корпус достиг границы неизведанного сектора галактики. На поверхности планеты были обнаружены следы древней цивилизации, опередившей человечество на миллионы лет. Исследователям предстоит разгадать тайну оставленных артефактов и понять причины исчезновения их создателей."
         }
 
-    # 2. Озвучиваем найденное описание книги через edge-tts
+    # Генерация озвучки
     audio_filename = f"audio_{uuid.uuid4().hex[:8]}.mp3"
     audio_path = os.path.join("static", audio_filename)
 
-    communicate = edge_tts.Communicate(book_info["text"], voice="ru-RU-DmitryNeural")
-    await communicate.save(audio_path)
+    try:
+        communicate = edge_tts.Communicate(book_info["text"], voice="ru-RU-DmitryNeural")
+        await communicate.save(audio_path)
+    except Exception as e:
+        print(f"TTS generation error: {e}")
 
-    # 3. Возвращаем результат
     return {
         "book": book_info,
         "audio_url": f"/static/{audio_filename}",

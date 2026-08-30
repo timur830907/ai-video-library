@@ -1,18 +1,17 @@
 import os
 import uuid
-import asyncio
-from fastapi import FastAPI, HTTPException, status
+import random
+import httpx
+import edge_tts
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from gtts import gTTS
 
-# Автоматическое создание папки для статических файлов
 os.makedirs("static", exist_ok=True)
 
 app = FastAPI(title="AI Video Library API")
 
-# Настройка CORS для работы с GitHub Pages
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,81 +20,77 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Подключение статической папки для раздачи аудиофайлов
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
 
 class GenerateRequest(BaseModel):
     user_id: str
     genre: str
 
+# Функция обращения к Google Books API
+async def fetch_google_book(genre: str):
+    url = f"https://www.googleapis.com/books/v1/volumes?q=subject:{genre}&langRestrict=ru&maxResults=20"
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url)
+        if response.status_code != 200:
+            return None
+        
+        data = response.json()
+        items = data.get("items", [])
+        if not items:
+            return None
+        
+        # Выбираем случайную книгу из 20 найденных
+        item = random.choice(items)
+        volume_info = item.get("volumeInfo", {})
+        
+        title = volume_info.get("title", "Неизвестное название")
+        authors = ", ".join(volume_info.get("authors", ["Неизвестный автор"]))
+        description = volume_info.get("description", "")
+        
+        # Если описания нет, пробуем выбрать другую книгу
+        if not description:
+            description = f"Книга '{title}' автора {authors} представлена в каталоге Google Books."
+            
+        return {
+            "title": title,
+            "author": authors,
+            "text": description
+        }
 
-# Фейковое хранилище пользователей и периода подписки
-users_db = {
-    "user_github_demo": {"days_left": 30}
-}
-
+VIDEO_SOURCES = [
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4"
+]
 
 @app.get("/")
 def root():
-    return {"status": "ok", "message": "AI Video Library Backend is running!"}
-
+    return {"status": "ok", "message": "Backend running with Google Books API"}
 
 @app.post("/generate")
 async def generate_content(req: GenerateRequest):
-    # Проверка подписки / триала
-    user = users_db.get(req.user_id, {"days_left": 30})
-    if user["days_left"] <= 0:
-        raise HTTPException(
-            status_code=status.HTTP_402_PAYMENT_REQUIRED,
-            detail="Subscription expired"
-        )
-
-    # Генерация текста на основе выбранного жанра
-    genre_content = {
-        "Фантастика": {
+    # 1. Запрашиваем реальную книгу из Google Books API
+    book_info = await fetch_google_book(req.genre)
+    
+    # Резервный вариант, если Google API не вернул результат
+    if not book_info:
+        book_info = {
             "title": "Звездный рубеж",
             "author": "ИИ Фантаст",
-            "text": "Корабль 'Гелиос' вышел из гиперпространства на орбите неизвестной планеты. Детекторы зафиксировали странный сигнал из глубин кратера."
-        },
-        "Детектив": {
-            "title": "Тайна вечернего экспресса",
-            "author": "ИИ Детектив",
-            "text": "Дождь стучал по стеклу купе. Сыщик внимательно осмотрел оставленный на столе конверт с сургучной печатью."
-        },
-        "Романтика": {
-            "title": "Встреча у моря",
-            "author": "ИИ Романтик",
-            "text": "Закат окрасил волны в золотистый цвет. Океанский бриз приносил прохладу, пока они молча шли по песчаному берегу."
-        },
-        "Ужасы": {
-            "title": "Шепот в темноте",
-            "author": "ИИ Хоррор",
-            "text": "Старый дом скрипел под порывами ветра. Из подвала донесся тихий, но отчетливый звук шагов."
+            "text": "Исследовательский крейсер 'Гелиос' вышел из гиперпространственного прыжка на самом краю сектора 7."
         }
-    }
 
-    book_info = genre_content.get(
-        req.genre,
-        {
-            "title": "Сгенерированная история",
-            "author": "ИИ Автор",
-            "text": f"История в жанре {req.genre}."
-        }
-    )
-
-    # Генерация аудиозаписи с помощью gTTS (Google Text-to-Speech)
+    # 2. Озвучиваем найденное описание книги через edge-tts
     audio_filename = f"audio_{uuid.uuid4().hex[:8]}.mp3"
     audio_path = os.path.join("static", audio_filename)
-    
-    tts = gTTS(text=book_info["text"], lang="ru")
-    tts.save(audio_path)
 
-    # Пример ссылки на фоновое видео (Pexels / CDN)
-    video_url = "https://assets.mixkit.co/videos/preview/mixkit-starry-night-sky-with-a-flying-meteor-42864-large.mp4"
+    communicate = edge_tts.Communicate(book_info["text"], voice="ru-RU-DmitryNeural")
+    await communicate.save(audio_path)
 
+    # 3. Возвращаем результат
     return {
         "book": book_info,
         "audio_url": f"/static/{audio_filename}",
-        "video_url": video_url
+        "video_url": random.choice(VIDEO_SOURCES)
     }

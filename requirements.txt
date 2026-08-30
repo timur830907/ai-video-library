@@ -1,3 +1,4 @@
 fastapi
 uvicorn
-gTTS
+edge-tts
+httpx

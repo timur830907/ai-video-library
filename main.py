@@ -10,6 +10,17 @@ import edge_tts
 import httpx
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+import matplotlib
+
+# Регистрируем шрифт с полной поддержкой кириллицы (DejaVu Sans)
+font_dir = os.path.join(os.path.dirname(matplotlib.__file__), "mpl-data", "fonts", "ttf")
+font_path = os.path.join(font_dir, "DejaVuSans.ttf")
+font_bold_path = os.path.join(font_dir, "DejaVuSans-Bold.ttf")
+
+pdfmetrics.registerFont(TTFont("DejaVuSans", font_path))
+pdfmetrics.registerFont(TTFont("DejaVuSans-Bold", font_bold_path))
 
 app = FastAPI()
 
@@ -24,7 +35,6 @@ app.add_middleware(
 os.makedirs("static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Хранилище сгенерированных книг в памяти для галереи и 공유 по ID
 BOOKS_DATABASE = {}
 
 
@@ -80,20 +90,21 @@ def create_pdf(filename: str, title: str, author: str, text: str) -> str:
     c = canvas.Canvas(pdf_path, pagesize=letter)
     width, height = letter
     
-    c.setFont("Helvetica-Bold", 14)
+    # Используем зарегистрированный шрифт DejaVuSans
+    c.setFont("DejaVuSans-Bold", 14)
     c.drawString(50, height - 50, title[:60])
     
-    c.setFont("Helvetica", 11)
-    c.drawString(50, height - 70, f"Author: {author[:60]}")
+    c.setFont("DejaVuSans", 11)
+    c.drawString(50, height - 70, f"Автор: {author[:60]}")
     c.line(50, height - 80, width - 50, height - 80)
     
-    c.setFont("Helvetica", 10)
+    c.setFont("DejaVuSans", 10)
     y = height - 100
     
     words = text.split()
     line = ""
     for word in words:
-        if len(line + " " + word) < 75:
+        if len(line + " " + word) < 65:
             line += " " + word if line else word
         else:
             c.drawString(50, y, line)
@@ -101,7 +112,7 @@ def create_pdf(filename: str, title: str, author: str, text: str) -> str:
             line = word
             if y < 50:
                 c.showPage()
-                c.setFont("Helvetica", 10)
+                c.setFont("DejaVuSans", 10)
                 y = height - 50
     if line:
         c.drawString(50, y, line)
@@ -117,7 +128,6 @@ def read_root():
 
 @app.get("/recent")
 def get_recent_books():
-    # Возвращает список последних созданных книг
     return list(BOOKS_DATABASE.values())[-6:][::-1]
 
 
@@ -135,7 +145,6 @@ async def generate_content(req: GenerateRequest):
     hero = req.hero_name.strip() if req.hero_name else "Главный герой"
     setting = req.theme_setting.strip() if req.theme_setting else "Наши дни"
     
-    # 1. Загрузка или генерация базового текста
     book = await search_free_book_google(raw_query)
     voice = detect_voice(raw_query)
 
@@ -152,20 +161,17 @@ async def generate_content(req: GenerateRequest):
             )
         }
     else:
-        # Если персонализация включена, адаптируем текст под главного героя
         if req.hero_name:
             book["title"] = f"{book['title']} (Спецвыпуск с {hero})"
             book["text"] = f"[Герой: {hero} | Эпоха: {setting}] " + book["text"]
 
     book_id = uuid.uuid4().hex[:8]
 
-    # 2. Озвучка EdgeTTS
     audio_filename = f"audio_{book_id}.mp3"
     audio_path = os.path.join("static", audio_filename)
     communicate = edge_tts.Communicate(book["text"][:3000], voice=book["voice"])
     await communicate.save(audio_path)
 
-    # 3. Генерация PDF
     pdf_filename = f"book_{book_id}.pdf"
     pdf_url = create_pdf(pdf_filename, book["title"], book["author"], book["text"])
 
@@ -180,6 +186,5 @@ async def generate_content(req: GenerateRequest):
         "pdf_url": pdf_url
     }
 
-    # Сохраняем в галерею
     BOOKS_DATABASE[book_id] = response_data
     return response_data

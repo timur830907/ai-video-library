@@ -12,15 +12,10 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-import matplotlib
 
-# Регистрируем шрифт с полной поддержкой кириллицы (DejaVu Sans)
-font_dir = os.path.join(os.path.dirname(matplotlib.__file__), "mpl-data", "fonts", "ttf")
-font_path = os.path.join(font_dir, "DejaVuSans.ttf")
-font_bold_path = os.path.join(font_dir, "DejaVuSans-Bold.ttf")
-
-pdfmetrics.registerFont(TTFont("DejaVuSans", font_path))
-pdfmetrics.registerFont(TTFont("DejaVuSans-Bold", font_bold_path))
+# Подключаем кириллический шрифт из файла в корне проекта
+FONT_PATH = os.path.join(os.path.dirname(__file__), "DejaVuSans.ttf")
+pdfmetrics.registerFont(TTFont("DejaVuSans", FONT_PATH))
 
 app = FastAPI()
 
@@ -90,14 +85,16 @@ def create_pdf(filename: str, title: str, author: str, text: str) -> str:
     c = canvas.Canvas(pdf_path, pagesize=letter)
     width, height = letter
     
-    # Используем зарегистрированный шрифт DejaVuSans
-    c.setFont("DejaVuSans-Bold", 14)
+    # Заголовок
+    c.setFont("DejaVuSans", 14)
     c.drawString(50, height - 50, title[:60])
     
+    # Автор
     c.setFont("DejaVuSans", 11)
     c.drawString(50, height - 70, f"Автор: {author[:60]}")
     c.line(50, height - 80, width - 50, height - 80)
     
+    # Текст
     c.setFont("DejaVuSans", 10)
     y = height - 100
     

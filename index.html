@@ -3,216 +3,123 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ИИ Библиотека & Генератор Книг</title>
+    <title>Персональная ИИ Библиотека</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f0f12; color: #f1f1f1; margin: 0; padding: 20px; display: flex; justify-content: center; }
-        .card { background: #18181c; padding: 30px; border-radius: 16px; max-width: 800px; width: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #2a2a30; }
-        h1 { font-size: 26px; margin-bottom: 8px; text-align: center; }
-        p.subtitle { color: #8e8e93; font-size: 14px; margin-bottom: 25px; text-align: center; }
-        
-        .section-title { font-size: 14px; color: #aaa; margin: 20px 0 10px; text-transform: uppercase; letter-spacing: 1px; }
-        
-        .custom-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        input[type="text"], select { padding: 14px; border-radius: 8px; border: 1px solid #333; font-size: 15px; background: #222226; color: #fff; outline: none; box-sizing: border-box; width: 100%; }
-        
-        button { padding: 14px 20px; border-radius: 8px; border: none; font-size: 15px; background: #e50914; color: #fff; font-weight: 600; cursor: pointer; transition: 0.2s; }
-        button:hover { background: #b80710; }
-        
-        .share-btn { background: #2AABEE; margin-left: 10px; }
-        .share-btn:hover { background: #229ed9; }
-
-        .result-box { background: #222226; padding: 25px; border-radius: 12px; margin-top: 25px; display: none; text-align: left; border: 1px solid #333; }
-        .pdf-btn { display: inline-block; background: #0288d1; color: #fff; padding: 12px 18px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 15px 0; }
-        
-        .text-container { max-height: 400px; overflow-y: auto; background: #161618; padding: 20px; border-radius: 8px; line-height: 1.7; white-space: pre-wrap; font-size: 15px; color: #ddd; border: 1px solid #2a2a30; margin-bottom: 20px; }
-        
-        .audio-section { background: #1a1a1e; padding: 15px; border-radius: 8px; border: 1px solid #2a2a30; }
-        .speed-controls { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
-        .speed-btn { background: #333; padding: 6px 12px; border-radius: 6px; font-size: 12px; }
-        
-        .recent-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 10px; }
-        .recent-card { background: #222226; padding: 12px; border-radius: 8px; border: 1px solid #333; cursor: pointer; }
-        .recent-card:hover { border-color: #e50914; }
-        .recent-card h5 { margin: 0 0 5px 0; color: #fff; }
-        .recent-card p { margin: 0; font-size: 12px; color: #888; }
-
-        .loading { display: none; color: #ffca28; text-align: center; margin: 15px 0; font-weight: bold; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #121212; color: #ffffff; padding: 20px; }
+        .container { max-width: 700px; margin: 0 auto; background: #1e1e1e; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        h1 { text-align: center; font-size: 24px; margin-bottom: 5px; }
+        p.subtitle { text-align: center; color: #aaa; font-size: 13px; margin-bottom: 25px; }
+        label { font-size: 11px; font-weight: bold; color: #888; text-transform: uppercase; display: block; margin-top: 15px; margin-bottom: 5px; }
+        input, select { width: 100%; padding: 12px; border-radius: 6px; border: 1px solid #333; background: #2a2a2a; color: #fff; box-sizing: border-box; margin-bottom: 10px; }
+        button { width: 100%; padding: 14px; background: #e50914; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px; margin-top: 15px; }
+        button:hover { background: #ff1e27; }
+        .result-box { margin-top: 30px; padding: 20px; background: #252525; border-radius: 8px; display: none; }
+        .btn-group { display: flex; gap: 10px; margin-top: 15px; }
+        .btn-group a, .btn-group button { flex: 1; text-align: center; text-decoration: none; padding: 10px; border-radius: 6px; font-size: 13px; font-weight: bold; color: white; background: #007acc; cursor: pointer; border: none; }
+        .btn-group .btn-tg { background: #0088cc; }
+        .btn-group .btn-copy { background: #444; }
+        audio { width: 100%; margin-top: 15px; }
     </style>
 </head>
 <body>
+    <div class="container">
+        <h1>📖 Персональная ИИ Библиотека</h1>
+        <p class="subtitle">Создавайте уникальные аудиокниги со своим именем или делитесь ими с друзьями</p>
 
-<div class="card">
-    <h1>📖 Персональная ИИ Библиотека</h1>
-    <p class="subtitle">Создавайте уникальные аудиокниги со своим именем или делитесь ими с друзьями</p>
-
-    <!-- 1. Персонализация -->
-    <div class="section-title">👤 Персонализация главного героя:</div>
-    <div class="custom-fields">
-        <input type="text" id="heroInput" placeholder="Имя главного героя (например, Тимур)">
-        <input type="text" id="settingInput" placeholder="Эпоха/Локация (например, Марс 2080 или Древняя степь)">
-    </div>
-
-    <!-- Выбор жанра и поиск -->
-    <div class="section-title">📚 Жанр или Поиск:</div>
-    <div style="margin-bottom: 15px;">
-        <input type="text" id="searchInput" placeholder="Название книги или автора (или оставьте пустым для жанра)">
-    </div>
-
-    <select id="genreSelect">
-        <option value="Фантастика (RU)">Фантастика (RU)</option>
-        <option value="Комедия (RU)">Комедия (RU)</option>
-        <option value="Боевик (RU)">Боевик (RU)</option>
-        <option value="Триллер (RU)">Триллер (RU)</option>
-        <option value="История (RU)">История (RU)</option>
-        <option value="Наука (RU)">Наука (RU)</option>
-        <option value="Sci-Fi (EN)">Sci-Fi (EN)</option>
-        <option value="Detective (EN)">Detective (EN)</option>
-        <option value="Horror (EN)">Horror (EN)</option>
-        <option value="Қазақ әдебиеті (KK)">Қазақ әдебиеті (KK)</option>
-        <option value="Дала сыры (KK)">Дала сыры (KK)</option>
-    </select>
-    
-    <button onclick="processRequest()" style="width: 100%; margin-top: 10px;">✨ Сгенерировать аудиокнигу</button>
-
-    <div id="loading" class="loading">⏳ Загрузка книги, верстка PDF и синтез голоса...</div>
-
-    <!-- Результат -->
-    <div id="result" class="result-box">
-        <h2 id="bookTitle" style="margin-top:0;"></h2>
-        <p id="bookAuthor" style="color: #00e676; font-weight: bold; margin-bottom: 15px;"></p>
-
-        <div>
-            <a id="pdfLink" class="pdf-btn" href="#" target="_blank">📄 Скачать PDF</a>
-            <!-- 2. Кнопка Поделиться -->
-            <button class="share-btn" onclick="shareTelegram()">✈️ В Telegram</button>
-            <button class="share-btn" style="background:#555;" onclick="copyBookLink()">📋 Скопировать ссылку</button>
+        <label>👤 ПЕРСОНАЛИЗАЦИЯ ГЛАВНОГО ГЕРОЯ:</label>
+        <div style="display: flex; gap: 10px;">
+            <input type="text" id="heroInput" placeholder="Имя героя (напр. Тимур)">
+            <input type="text" id="themeInput" placeholder="Эпоха / Сеттинг">
         </div>
 
-        <h4>📖 Текст книги:</h4>
-        <div id="bookText" class="text-container"></div>
+        <label>🔍 ПОИСК КНИГИ ИЛИ ЖАНР:</label>
+        <input type="text" id="searchInput" placeholder="Введите название реальной книги или автора...">
+        
+        <select id="genreSelect">
+            <option value="">или выберите жанр из списка</option>
+            <option value="Фантастика (RU)">Фантастика (RU)</option>
+            <option value="Детектив (RU)">Детектив (RU)</option>
+            <option value="Ужасы (RU)">Ужасы (RU)</option>
+            <option value="Sci-Fi (EN)">Sci-Fi (EN)</option>
+            <option value="Қазақ әдебиеті (KK)">Қазақ әдебиеті (KK)</option>
+        </select>
 
-        <div class="audio-section">
-            <h4>🎧 Озвучка (Нейросеть):</h4>
-            <audio id="audioPlayer" controls style="width: 100%;"></audio>
-            <div class="speed-controls">
-                <span style="font-size: 12px; color: #888;">Скорость:</span>
-                <button class="speed-btn" onclick="setSpeed(1.0)">1.0x</button>
-                <button class="speed-btn" onclick="setSpeed(1.25)">1.25x</button>
-                <button class="speed-btn" onclick="setSpeed(1.5)">1.5x</button>
-                <button class="speed-btn" onclick="setSpeed(2.0)">2.0x</button>
+        <button onclick="generateBook()" id="genBtn">✨ Найти / Сгенерировать аудиокнигу</button>
+
+        <div class="result-box" id="resultBox">
+            <h2 id="bookTitle"></h2>
+            <p id="bookAuthor" style="color: #4caf50; font-weight: bold;"></p>
+            <audio id="audioPlayer" controls></audio>
+            <div class="btn-group">
+                <a id="pdfLink" target="_blank">📥 Скачать PDF</a>
+                <button class="btn-tg" onclick="shareTelegram()">✈️ В Telegram</button>
+                <button class="btn-copy" onclick="copyLink()">📋 Скопировать ссылку</button>
             </div>
+            <h4 style="margin-top: 20px;">📜 Текст книги:</h4>
+            <p id="bookText" style="line-height: 1.6; color: #ddd;"></p>
         </div>
     </div>
 
-    <!-- 3. Галерея последних генераций -->
-    <div class="section-title" style="margin-top: 30px;">🔥 Недавно созданные книги:</div>
-    <div id="recentGrid" class="recent-grid">
-        <p style="color:#666; font-size:13px;">Загрузка истории...</p>
-    </div>
-</div>
+    <script>
+        const API_BASE = "https://ai-video-library.onrender.com"; // или адрес вашего бэкенда на Render
 
-<script>
-    const BACKEND_URL = "https://ai-video-library.onrender.com";
-    let currentBookId = "";
+        async function generateBook() {
+            const hero = document.getElementById('heroInput').value.trim();
+            const theme = document.getElementById('themeInput').value.trim();
+            const searchVal = document.getElementById('searchInput').value.trim();
+            const genreVal = document.getElementById('genreSelect').value;
 
-    function setSpeed(speed) {
-        document.getElementById("audioPlayer").playbackRate = speed;
-    }
+            // Если введено название в поле поиска — ищем его, иначе берем жанр из селекта
+            const query = searchVal ? searchVal : genreVal;
 
-    async function processRequest() {
-        const searchVal = document.getElementById("searchInput").value.trim();
-        const genreVal = document.getElementById("genreSelect").value;
-        const heroName = document.getElementById("heroInput").value.trim();
-        const themeSetting = document.getElementById("settingInput").value.trim();
-
-        const query = searchVal || genreVal;
-
-        const loading = document.getElementById("loading");
-        const result = document.getElementById("result");
-
-        loading.style.display = "block";
-        result.style.display = "none";
-
-        try {
-            const response = await fetch(`${BACKEND_URL}/generate`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    user_id: "user1",
-                    genre: query,
-                    hero_name: heroName,
-                    theme_setting: themeSetting
-                })
-            });
-
-            const data = await response.json();
-            displayBook(data);
-            loadRecent();
-        } catch (e) {
-            alert("Ошибка сети или бэкенд просыпается: " + e.message);
-            loading.style.display = "none";
-        }
-    }
-
-    function displayBook(data) {
-        currentBookId = data.id;
-        document.getElementById("bookTitle").innerText = data.book.title;
-        document.getElementById("bookAuthor").innerText = "Автор: " + data.book.author;
-        document.getElementById("bookText").innerText = data.book.text;
-
-        document.getElementById("pdfLink").href = BACKEND_URL + data.pdf_url;
-        document.getElementById("audioPlayer").src = BACKEND_URL + data.audio_url;
-
-        document.getElementById("loading").style.display = "none";
-        document.getElementById("result").style.display = "block";
-    }
-
-    function shareTelegram() {
-        const text = encodeURIComponent(`Послушай персонализированную аудиокнигу "${document.getElementById("bookTitle").innerText}"!`);
-        const url = encodeURIComponent(window.location.origin + window.location.pathname + "?id=" + currentBookId);
-        window.open(`https://t.me/share/url?url=${url}&text=${text}`, '_blank');
-    }
-
-    function copyBookLink() {
-        const shareUrl = window.location.origin + window.location.pathname + "?id=" + currentBookId;
-        navigator.clipboard.writeText(shareUrl);
-        alert("Ссылка на книгу скопирована!");
-    }
-
-    async function loadRecent() {
-        try {
-            const resp = await fetch(`${BACKEND_URL}/recent`);
-            if (resp.ok) {
-                const list = await resp.json();
-                const grid = document.getElementById("recentGrid");
-                grid.innerHTML = "";
-                list.forEach(item => {
-                    const card = document.createElement("div");
-                    card.className = "recent-card";
-                    card.onclick = () => displayBook(item);
-                    card.innerHTML = `<h5>${item.book.title}</h5><p>${item.book.author}</p>`;
-                    grid.appendChild(card);
-                });
+            if (!query) {
+                alert("Пожалуйста, введите название книги или выберите жанр!");
+                return;
             }
-        } catch (e) {}
-    }
 
-    // Загрузка книги по ID из URL при открытии ссылки
-    window.onload = async () => {
-        loadRecent();
-        const urlParams = new URLSearchParams(window.location.search);
-        const bookId = urlParams.get('id');
-        if (bookId) {
+            const btn = document.getElementById('genBtn');
+            btn.innerText = "⏳ Поиск книги и генерация...";
+            btn.disabled = true;
+
             try {
-                const resp = await fetch(`${BACKEND_URL}/book/${bookId}`);
-                if (resp.ok) {
-                    const data = await resp.json();
-                    displayBook(data);
-                }
-            } catch (e) {}
-        }
-    };
-</script>
+                const res = await fetch(`${API_BASE}/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        genre: query,
+                        hero_name: hero,
+                        theme_setting: theme
+                    })
+                });
 
+                const data = await res.json();
+
+                document.getElementById('resultBox').style.display = 'block';
+                document.getElementById('bookTitle').innerText = data.book.title;
+                document.getElementById('bookAuthor').innerText = "Автор: " + data.book.author;
+                document.getElementById('bookText').innerText = data.book.text;
+                document.getElementById('audioPlayer').src = API_BASE + data.audio_url;
+                document.getElementById('pdfLink').href = API_BASE + data.pdf_url;
+
+            } catch (err) {
+                alert("Ошибка генерации. Проверьте подключение к серверу.");
+                console.error(err);
+            } finally {
+                btn.innerText = "✨ Найти / Сгенерировать аудиокнигу";
+                btn.disabled = false;
+            }
+        }
+
+        function shareTelegram() {
+            const title = document.getElementById('bookTitle').innerText;
+            const url = window.location.href;
+            window.open(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`);
+        }
+
+        function copyLink() {
+            navigator.clipboard.writeText(window.location.href);
+            alert("Ссылка скопирована!");
+        }
+    </script>
 </body>
 </html>

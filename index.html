@@ -5,42 +5,50 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ИИ Аудио & Видео Библиотека</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #121212; color: #fff; text-align: center; padding: 40px 20px; }
-        .card { background: #1e1e1e; max-width: 600px; margin: 0 auto; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        select, button { padding: 12px 20px; font-size: 16px; margin: 10px; border-radius: 6px; border: none; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #121212; color: #fff; padding: 20px; }
+        .card { background: #1e1e1e; max-width: 600px; margin: 0 auto; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        select, button { padding: 12px 20px; font-size: 16px; margin: 10px 0; border-radius: 6px; border: none; width: 100%; box-sizing: border-box; }
         select { background: #2a2a2a; color: #fff; }
-        button { background: #e50914; color: white; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        button { background: #e50914; color: white; cursor: pointer; font-weight: bold; transition: 0.3s; }
         button:hover { background: #b80710; }
         #result { background: #282828; padding: 20px; border-radius: 8px; margin-top: 20px; text-align: left; }
         video { width: 100%; border-radius: 8px; margin-top: 15px; }
         audio { width: 100%; margin-top: 15px; }
+        #paymentBlock { display: none; background: #332200; border: 1px solid #ff9900; padding: 15px; border-radius: 8px; margin-top: 15px; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h1>🎬 ИИ Генератор Книг</h1>
+    <h1>📖 ИИ Генератор Книг</h1>
     <p>Выберите жанр для создания аудиофрагмента и видеоряда:</p>
     
     <select id="genreSelect">
-        <option value="Фантастика">🚀 Фантастика</option>
-        <option value="Детектив">🔍 Детектив</option>
-        <option value="Фэнтези">🐉 Фэнтези</option>
-        <option value="Киберпанк">🤖 Киберпанк</option>
+        <option value="Фантастика">Фантастика</option>
+        <option value="Детектив">Детектив</option>
+        <option value="Романтика">Романтика</option>
+        <option value="Ужасы">Ужасы</option>
     </select>
-    <br>
-    <button onclick="generateMedia()">Сгенерировать и озвучить</button>
 
-    <div id="status" style="margin-top: 15px; color: #ffb703;"></div>
+    <button onclick="generateMedia()">Сгенерировать контент</button>
 
-    <div id="result" style="display:none;">
-        <h2 id="title" style="color: #e50914; margin-top: 0;"></h2>
+    <div id="status" style="margin-top: 15px; font-weight: bold;"></div>
+
+    <div id="paymentBlock">
+        ⚠️ Бесплатный период завершен. Оплатите подписку для продолжения использования.
+        <button onclick="openKaspiPay()" style="background: #00897b; margin-top: 10px;">Оплатить через Kaspi</button>
+    </div>
+
+    <div id="result" style="display: none;">
+        <h2 id="title"></h2>
         <h4 id="author" style="color: #aaa;"></h4>
         <p id="text" style="line-height: 1.6;"></p>
-        <label>🎙 Аудиодорожка:</label>
+        
+        <h3>🎧 Озвучка:</h3>
         <audio id="audioPlayer" controls></audio>
-        <label style="display:block; margin-top:15px;">📹 Видеоряд:</label>
-        <video id="videoPlayer" controls></video>
+        
+        <h3>🎬 Видеоряд:</h3>
+        <video id="videoPlayer" controls autoplay loop muted></video>
     </div>
 </div>
 
@@ -49,20 +57,25 @@ async function generateMedia() {
     const genre = document.getElementById('genreSelect').value;
     const statusDiv = document.getElementById('status');
     const resultDiv = document.getElementById('result');
-    
-    statusDiv.innerText = "⏳ ИИ генерирует текст, аудио и видео...";
+    const paymentBlock = document.getElementById('paymentBlock');
+
+    const BACKEND_URL = "https://ai-video-library.onrender.com";
+
+    statusDiv.innerText = "⏳ ИИ генерирует текст, озвучку и видео...";
     resultDiv.style.display = 'none';
+    if (paymentBlock) paymentBlock.style.display = 'none';
 
     try {
-        const response = await fetch('/api/generate', {
+        const response = await fetch(`${BACKEND_URL}/generate`, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ user_id: 'test_user', genre: genre })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: 'user_github_demo', genre: genre })
         });
 
         if (response.status === 402) {
             alert("Бесплатный период (30 дней) завершен. Оплатите подписку через Kaspi QR!");
             statusDiv.innerText = "";
+            if (paymentBlock) paymentBlock.style.display = 'block';
             return;
         }
 
@@ -73,13 +86,17 @@ async function generateMedia() {
         document.getElementById('title').innerText = data.book.title;
         document.getElementById('author').innerText = "Автор: " + data.book.author;
         document.getElementById('text').innerText = data.book.text;
-        
-        document.getElementById('audioPlayer').src = data.audio_url;
+
+        document.getElementById('audioPlayer').src = BACKEND_URL + data.audio_url;
         document.getElementById('videoPlayer').src = data.video_url;
     } catch (err) {
         statusDiv.innerText = "❌ Ошибка при отправке запроса.";
         console.error(err);
     }
+}
+
+function openKaspiPay() {
+    window.location.href = "https://kaspi.kz/pay/";
 }
 </script>
 

@@ -1,6 +1,7 @@
 import os
 import re
 import uuid
+import urllib.parse
 from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
@@ -55,44 +56,74 @@ def detect_voice(query: str):
         return "ru-RU-DmitryNeural"
 
 
-async def search_free_book_google(query: str):
+async def search_free_book(query: str):
     clean_query = query.split("(")[0].strip()
-    url = f"https://www.googleapis.com/books/v1/volumes?q={clean_query}&maxResults=5&langRestrict=ru"
+    encoded_query = urllib.parse.quote(clean_query)
+    
+    # 1. Попытка поиска через Google Books API
+    gb_url = f"https://www.googleapis.com/books/v1/volumes?q={encoded_query}&maxResults=5"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
+    }
     
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(url, timeout=7.0)
+        async with httpx.AsyncClient(headers=headers, follow_redirects=True) as client:
+            resp = await client.get(gb_url, timeout=7.0)
             if resp.status_code == 200:
                 data = resp.json()
                 items = data.get("items", [])
                 for item in items:
                     info = item.get("volumeInfo", {})
                     title = info.get("title", clean_query)
-                    authors = ", ".join(info.get("authors", [])) or "Классический автор"
+                    authors = ", ".join(info.get("authors", []))
                     desc = info.get("description", "")
                     snippet = item.get("searchInfo", {}).get("textSnippet", "")
                     
-                    full_text = desc if desc else snippet
-                    
-                    if full_text:
+                    text_content = desc if desc else snippet
+                    if text_content and len(clean_html(text_content)) > 20:
                         return {
                             "title": title,
-                            "author": authors,
+                            "author": authors if authors else "Классическое произведение",
                             "voice": detect_voice(query),
-                            "text": clean_html(full_text)
+                            "text": clean_html(text_content)
                         }
-                    else:
-                        categories = ", ".join(info.get("categories", ["Художественная литература"]))
-                        pub_date = info.get("publishedDate", "Не указан")
+                    elif title:
+                        cat = ", ".join(info.get("categories", ["Мировая литература"]))
+                        date = info.get("publishedDate", "")
                         return {
                             "title": title,
-                            "author": authors,
+                            "author": authors if authors else "Авторы мирового фонда",
                             "voice": detect_voice(query),
-                            "text": f"Произведение «{title}» (Автор: {authors}). Категория: {categories}. Дата публикации / издания: {pub_date}. "
-                                    f"Это выдающееся литературное произведение из мировой базы данных Google Books."
+                            "text": f"Книга «{title}» ({authors}). Категория: {cat}. Дата издания: {date}. "
+                                    f"Данное фундаментальное произведение вошло в международные каталоги литературы."
                         }
     except Exception as e:
-        print("Google Books API Error:", e)
+        print("Google Books Error:", e)
+
+    # 2. Попытка поиска через Open Library API (если Google Books ничего не вернул)
+    try:
+        ol_url = f"https://openlibrary.org/search.json?q={encoded_query}&limit=3"
+        async with httpx.AsyncClient(headers=headers, follow_redirects=True) as client:
+            resp = await client.get(ol_url, timeout=7.0)
+            if resp.status_code == 200:
+                docs = resp.json().get("docs", [])
+                if docs:
+                    doc = docs[0]
+                    title = doc.get("title", clean_query)
+                    authors = ", ".join(doc.get("author_name", []))
+                    first_sentence = doc.get("first_sentence", [])
+                    sentence_text = " ".join(first_sentence) if isinstance(first_sentence, list) else str(first_sentence)
+                    
+                    body_text = sentence_text if sentence_text else f"Известное фундаментальное произведение «{title}» автора {authors}."
+                    return {
+                        "title": title,
+                        "author": authors if authors else "Классика литературы",
+                        "voice": detect_voice(query),
+                        "text": body_text
+                    }
+    except Exception as e:
+        print("Open Library Error:", e)
+
     return None
 
 
@@ -156,25 +187,22 @@ async def generate_content(req: GenerateRequest):
     hero = req.hero_name.strip() if req.hero_name else ""
     setting = req.theme_setting.strip() if req.theme_setting else ""
     
-    book = await search_free_book_google(raw_query)
+    book = await search_free_book(raw_query)
     voice = detect_voice(raw_query)
 
     if not book:
         clean_genre_key = raw_query.split(" (")[0].strip()
         hero_text = hero if hero else "Главный герой"
         book = {
-            "title": f"Приключения {hero_text} в мире {clean_genre_key}",
-            "author": "ИИ Нейросеть",
+            "title": f"Произведение: {clean_genre_key}",
+            "author": "Мировая библиотека",
             "voice": voice,
-            "text": (
-                f"В центре событий оказался {hero_text}. В сеттинге '{setting if setting else 'Наши дни'}' "
-                f"персонаж проходит через ключевые испытания жанра {clean_genre_key}."
-            )
+            "text": f"Книга по запросу «{clean_genre_key}». Сеттинг: {setting if setting else 'Классика'}. Герой: {hero_text}."
         }
     else:
         if hero:
-            book["title"] = f"{book['title']} (Спецверсия)"
-            book["text"] = f"[Адаптация для: {hero}" + (f" | Сеттинг: {setting}" if setting else "") + f"]\n\n" + book["text"]
+            book["title"] = f"{book['title']} (Версия с {hero})"
+            book["text"] = f"[Персонализация: {hero}" + (f" | Сеттинг: {setting}" if setting else "") + f"]\n\n" + book["text"]
 
     book_id = uuid.uuid4().hex[:8]
 

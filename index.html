@@ -18,8 +18,8 @@
         .pdf-btn { display: inline-block; background: #0288d1; color: #fff; padding: 10px 15px; border-radius: 6px; text-decoration: none; font-weight: bold; margin-bottom: 15px; }
         .pdf-btn:hover { background: #0277bd; }
         .result-box { background: #282828; padding: 20px; border-radius: 8px; margin-top: 15px; display: none; }
-        .text-container { max-height: 400px; overflow-y: auto; background: #1e1e1e; padding: 15px; border-radius: 6px; line-height: 1.6; white-space: pre-wrap; }
-        audio, video { width: 100%; margin-top: 10px; border-radius: 6px; }
+        .text-container { max-height: 400px; overflow-y: auto; background: #1e1e1e; padding: 15px; border-radius: 6px; line-height: 1.6; white-space: pre-wrap; margin-bottom: 15px; }
+        audio { width: 100%; margin-top: 10px; border-radius: 6px; }
         .loading { display: none; color: #ffca28; text-align: center; margin: 10px 0; }
     </style>
 </head>
@@ -27,10 +27,10 @@
 
 <div class="card">
     <h1>📖 ИИ Библиотека & Генератор Книг</h1>
-    <p class="subtitle">Ищите реальные бесплатные книги по названию/автору или генерируйте по жанру:</p>
+    <p class="subtitle">Ищите книги по названию/автору или генерируйте по жанру:</p>
 
     <div class="search-box">
-        <input type="text" id="searchInput" placeholder="Введите название книги или автора (например, Абай, Толстой, Hamlet)...">
+        <input type="text" id="searchInput" placeholder="Введите название книги или автора...">
         <button onclick="processRequest('search')">Найти книгу</button>
     </div>
 
@@ -52,7 +52,7 @@
     
     <button onclick="processRequest('genre')" style="width: 100%;">Сгенерировать по жанру</button>
 
-    <div id="loading" class="loading">⏳ Поиск книги, обработка текста и создание нейроозвучки...</div>
+    <div id="loading" class="loading">⏳ Загрузка текста, формирование PDF и генерация озвучки...</div>
 
     <div id="result" class="result-box">
         <h2 id="bookTitle"></h2>
@@ -63,11 +63,8 @@
         <h4>📖 Полный текст:</h4>
         <div id="bookText" class="text-container"></div>
 
-        <h4>🎧 Аудиоглава / Озвучка:</h4>
+        <h4>🎧 Аудиоозвучка:</h4>
         <audio id="audioPlayer" controls></audio>
-
-        <h4>🎬 Видеоряд:</h4>
-        <video id="videoPlayer" controls autoplay loop muted></video>
     </div>
 </div>
 
@@ -110,9 +107,6 @@
 
             const audio = document.getElementById("audioPlayer");
             audio.src = BACKEND_URL + data.audio_url;
-
-            const video = document.getElementById("videoPlayer");
-            video.src = data.video_url;
 
             loading.style.display = "none";
             result.style.display = "block";

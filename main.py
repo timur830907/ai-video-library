@@ -33,6 +33,30 @@ if os.path.exists(FONT_PATH):
 
 BOOKS_DATABASE = {}
 
+# Встроенная локальная база популярных книг на случай проблем с внешними сетью/API
+CLASSIC_BOOKS_DB = {
+    "капитал": {
+        "title": "Капитал (Das Kapital)",
+        "author": "Карл Маркс",
+        "text": "«Капитал» — главный труд Карла Маркса по политической экономии, содержащий критический анализ капитализма. В этой работе исследуются товарное производство, добавочная стоимость, закон стоимости, распределение дохода и динамика экономических процессов в обществе."
+    },
+    "война и мир": {
+        "title": "Война и мир",
+        "author": "Лев Толстой",
+        "text": "«Война и мир» — роман-эпопея Льва Николаевича Толстого, описывающий события войн против Наполеона 1805–1812 годов. Через истории семей Ростовских, Болконских и Безуховых автор исследует философию истории, смысл жизни, любовь и судьбы народа."
+    },
+    "преступление и наказание": {
+        "title": "Преступление и наказание",
+        "author": "Фёдор Достоевский",
+        "text": "Роман Фёдора Михайловича Достоевского о молодом студенте Родионе Раскольникове, решившемся на убийство ради проверки своей теории о «необыкновенных людях». Произведение раскрывает глубокий психологизм, мотивы вины и путь к духовному возрождению."
+    },
+    "мастер и маргарита": {
+        "title": "Мастер и Маргарита",
+        "author": "Михаил Булгаков",
+        "text": "Роман Михаила Булгакова, соединяющий в себе сатиру на советскую Москву 1930-х годов, философскую притчу о Понтии Пилате и историю безусловной любви Маргариты и Мастера."
+    }
+}
+
 
 class GenerateRequest(BaseModel):
     user_id: str = "user1"
@@ -57,72 +81,56 @@ def detect_voice(query: str):
 
 
 async def search_free_book(query: str):
-    clean_query = query.split("(")[0].strip()
-    encoded_query = urllib.parse.quote(clean_query)
+    clean_query = query.split("(")[0].strip().lower()
     
-    # 1. Попытка поиска через Google Books API
-    gb_url = f"https://www.googleapis.com/books/v1/volumes?q={encoded_query}&maxResults=5"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
-    }
-    
+    # 1. Проверяем точные совпадения по локальной базе
+    for k, v in CLASSIC_BOOKS_DB.items():
+        if k in clean_query:
+            return {
+                "title": v["title"],
+                "author": v["author"],
+                "voice": detect_voice(query),
+                "text": v["text"]
+            }
+
+    # 2. Поиск через Wikipedia API (надежно работает на серверах Render)
     try:
-        async with httpx.AsyncClient(headers=headers, follow_redirects=True) as client:
-            resp = await client.get(gb_url, timeout=7.0)
+        wiki_url = f"https://ru.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(query.split('(')[0].strip())}"
+        async with httpx.AsyncClient(headers={"User-Agent": "AILibraryApp/1.0"}, follow_redirects=True) as client:
+            resp = await client.get(wiki_url, timeout=5.0)
             if resp.status_code == 200:
                 data = resp.json()
-                items = data.get("items", [])
+                extract = data.get("extract", "")
+                title = data.get("title", query)
+                if extract and len(extract) > 30:
+                    return {
+                        "title": title,
+                        "author": "Классическая литература / Википедия",
+                        "voice": detect_voice(query),
+                        "text": extract
+                    }
+    except Exception as e:
+        print("Wiki search error:", e)
+
+    # 3. Резервный поиск через Google Books API
+    try:
+        gb_url = f"https://www.googleapis.com/books/v1/volumes?q={urllib.parse.quote(query.split('(')[0].strip())}&maxResults=3"
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(gb_url)
+            if resp.status_code == 200:
+                items = resp.json().get("items", [])
                 for item in items:
                     info = item.get("volumeInfo", {})
-                    title = info.get("title", clean_query)
-                    authors = ", ".join(info.get("authors", []))
                     desc = info.get("description", "")
-                    snippet = item.get("searchInfo", {}).get("textSnippet", "")
-                    
-                    text_content = desc if desc else snippet
-                    if text_content and len(clean_html(text_content)) > 20:
+                    if desc:
                         return {
-                            "title": title,
-                            "author": authors if authors else "Классическое произведение",
+                            "title": info.get("title", query),
+                            "author": ", ".join(info.get("authors", ["Известный автор"])),
                             "voice": detect_voice(query),
-                            "text": clean_html(text_content)
-                        }
-                    elif title:
-                        cat = ", ".join(info.get("categories", ["Мировая литература"]))
-                        date = info.get("publishedDate", "")
-                        return {
-                            "title": title,
-                            "author": authors if authors else "Авторы мирового фонда",
-                            "voice": detect_voice(query),
-                            "text": f"Книга «{title}» ({authors}). Категория: {cat}. Дата издания: {date}. "
-                                    f"Данное фундаментальное произведение вошло в международные каталоги литературы."
+                            "text": clean_html(desc)
                         }
     except Exception as e:
         print("Google Books Error:", e)
-
-    # 2. Попытка поиска через Open Library API (если Google Books ничего не вернул)
-    try:
-        ol_url = f"https://openlibrary.org/search.json?q={encoded_query}&limit=3"
-        async with httpx.AsyncClient(headers=headers, follow_redirects=True) as client:
-            resp = await client.get(ol_url, timeout=7.0)
-            if resp.status_code == 200:
-                docs = resp.json().get("docs", [])
-                if docs:
-                    doc = docs[0]
-                    title = doc.get("title", clean_query)
-                    authors = ", ".join(doc.get("author_name", []))
-                    first_sentence = doc.get("first_sentence", [])
-                    sentence_text = " ".join(first_sentence) if isinstance(first_sentence, list) else str(first_sentence)
-                    
-                    body_text = sentence_text if sentence_text else f"Известное фундаментальное произведение «{title}» автора {authors}."
-                    return {
-                        "title": title,
-                        "author": authors if authors else "Классика литературы",
-                        "voice": detect_voice(query),
-                        "text": body_text
-                    }
-    except Exception as e:
-        print("Open Library Error:", e)
 
     return None
 
@@ -192,17 +200,16 @@ async def generate_content(req: GenerateRequest):
 
     if not book:
         clean_genre_key = raw_query.split(" (")[0].strip()
-        hero_text = hero if hero else "Главный герой"
         book = {
             "title": f"Произведение: {clean_genre_key}",
-            "author": "Мировая библиотека",
+            "author": "Литературный обзор",
             "voice": voice,
-            "text": f"Книга по запросу «{clean_genre_key}». Сеттинг: {setting if setting else 'Классика'}. Герой: {hero_text}."
+            "text": f"Обзорное произведение по теме «{clean_genre_key}». " + (f"Главный герой: {hero}. " if hero else "") + (f"Эпоха: {setting}." if setting else "")
         }
     else:
         if hero:
             book["title"] = f"{book['title']} (Версия с {hero})"
-            book["text"] = f"[Персонализация: {hero}" + (f" | Сеттинг: {setting}" if setting else "") + f"]\n\n" + book["text"]
+            book["text"] = f"[Персонализированная адаптация для: {hero}" + (f" | Сеттинг: {setting}" if setting else "") + f"]\n\n" + book["text"]
 
     book_id = uuid.uuid4().hex[:8]
 
